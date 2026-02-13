@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/tabs-najnovije-najcitanije",
+	"title": "Kompas Najnovije/Najčitanije",
+	"category": "theme",
+	"description": "Tabovi sa najnovijim i najčitanijim vestima u 2+4 grid rasporedu.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"count": {
+			"type": "number",
+			"default": 6
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/tabs-najnovije-najcitanije.php"
+}

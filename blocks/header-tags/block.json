@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/header-tags",
+	"title": "Kompas Header Tags",
+	"category": "theme",
+	"description": "Prikazuje izabrane tagove kao sekundarnu navigaciju u headeru.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"selectedIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/header-tags.php"
+}

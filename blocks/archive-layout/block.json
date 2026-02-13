@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/archive-layout",
+	"title": "Kompas Archive Layout",
+	"category": "theme",
+	"description": "Hero sekcija + grid postova za arhivske stranice (kategorije, tagovi).",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"postsPerPage": {
+			"type": "number",
+			"default": 17
+		},
+		"heroPostIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/archive-layout.php"
+}

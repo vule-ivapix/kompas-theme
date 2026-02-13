@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/header-nav",
+	"title": "Kompas Header Nav",
+	"category": "theme",
+	"description": "Prikazuje izabrane kategorije kao glavnu navigaciju u headeru.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"selectedIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/header-nav.php"
+}

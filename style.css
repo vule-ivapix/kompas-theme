@@ -1,0 +1,644 @@
+/*
+Theme Name: Kompas
+Theme URI: https://kompas.rs
+Author: Vukašin Rančić
+Author URI: https://kompas.rs
+Description: Nativna WordPress Block tema za Srpski Nedeljnik Kompas. Full Site Editing (FSE) tema bez eksternih zavisnosti.
+Version: 1.0.0
+Requires at least: 6.4
+Tested up to: 6.7
+Requires PHP: 8.0
+Text Domain: kompas
+Tags: full-site-editing, block-theme, blog, news, accessibility-ready
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+*/
+
+/* ========================================================================
+   Base
+   ======================================================================== */
+
+:root {
+	scroll-behavior: smooth;
+}
+
+body {
+	margin: 0;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* ========================================================================
+   Header
+   ======================================================================== */
+
+/* Constrain header content so tag row starts after the logo column */
+.kompas-header {
+	max-width: var(--wp--style--global--wide-size);
+	margin: 0 auto;
+}
+
+/* Header columns row */
+.kompas-header-row.wp-block-columns {
+	margin: 0 auto;
+	max-width: var(--wp--style--global--wide-size);
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+/* Logo column */
+.kompas-logo-col {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--wp--preset--spacing--20);
+}
+
+.kompas-logo img,
+.kompas-logo .wp-block-site-logo img {
+	display: block;
+	width: 100%;
+	height: auto;
+	object-fit: contain;
+}
+
+/* Nav column: two stacked rows filling full height */
+.kompas-nav-col {
+	display: flex;
+	flex-direction: column;
+	border-left: 1px solid var(--wp--preset--color--border);
+}
+
+/* Top row: categories ... search */
+.kompas-header-top-row {
+	flex: 1 1 0%;
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+/* Bottom row: tags ... cir/lat */
+.kompas-header-bottom-row {
+	flex: 1 1 0%;
+}
+
+/* Categories nav */
+.kompas-header-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: clamp(1rem, 2.5vw, 2.5rem);
+	align-items: center;
+}
+
+.kompas-header-link {
+	font-size: clamp(0.7rem, 1vw, 0.9375rem);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--wp--preset--color--dark);
+	text-decoration: none;
+	white-space: nowrap;
+	font-family: var(--wp--preset--font-family--montserrat);
+	transition: color 0.15s;
+}
+
+.kompas-header-link:hover {
+	color: var(--wp--preset--color--primary);
+}
+
+/* Tags nav */
+.kompas-header-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: clamp(0.75rem, 2vw, 2rem);
+	align-items: center;
+}
+
+.kompas-header-tag-link {
+	font-size: clamp(0.625rem, 0.85vw, 0.8125rem);
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--wp--preset--color--muted);
+	text-decoration: none;
+	white-space: nowrap;
+	font-family: var(--wp--preset--font-family--montserrat);
+	transition: color 0.15s;
+}
+
+.kompas-header-tag-link:hover {
+	color: var(--wp--preset--color--dark);
+}
+
+/* Search icon */
+.kompas-search .wp-block-search__button {
+	background: none;
+	border: none;
+	padding: 0.25rem;
+	cursor: pointer;
+	color: var(--wp--preset--color--primary);
+}
+
+.kompas-search .wp-block-search__button:hover {
+	color: var(--wp--preset--color--dark);
+}
+
+/* Cir/Lat toggle */
+.kompas-script-toggle {
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	margin: 0 !important;
+}
+
+/* Author header logo */
+.kompas-logo-author img,
+.kompas-logo-author .wp-block-site-logo img {
+	max-height: 50px;
+	width: auto;
+}
+
+/* Mobile */
+@media (max-width: 781px) {
+	.kompas-header-row.wp-block-columns {
+		flex-wrap: wrap !important;
+	}
+
+	.kompas-logo-col {
+		flex-basis: 100% !important;
+		justify-content: flex-start;
+		padding: var(--wp--preset--spacing--30) var(--wp--preset--spacing--40);
+	}
+
+	.kompas-logo img,
+	.kompas-logo .wp-block-site-logo img {
+		width: auto;
+		max-width: 160px;
+	}
+
+	.kompas-nav-col {
+		flex-basis: 100% !important;
+		border-left: none;
+		border-top: 1px solid var(--wp--preset--color--border);
+	}
+
+	.kompas-header-categories,
+	.kompas-header-tags {
+		gap: 0.75rem;
+	}
+}
+
+/* ========================================================================
+   Navigation - Mobile Overlay
+   ======================================================================== */
+
+.wp-block-navigation__responsive-container.is-menu-open {
+	padding: var(--wp--preset--spacing--60) var(--wp--preset--spacing--50);
+}
+
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content {
+	padding-top: var(--wp--preset--spacing--60);
+}
+
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation-item__content {
+	font-size: 1rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	padding: 0.75rem 0;
+	border-bottom: 1px solid var(--wp--preset--color--border);
+	display: block;
+	width: 100%;
+}
+
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__submenu-container .wp-block-navigation-item__content {
+	font-weight: 400;
+	font-size: 0.875rem;
+	color: var(--wp--preset--color--muted);
+	padding-left: 1.5rem;
+}
+
+/* ========================================================================
+   Block Styles
+   ======================================================================== */
+
+/* Border top red style */
+.is-style-kompas-border-top-red {
+	border-top: 3px solid var(--wp--preset--color--primary);
+	padding-top: var(--wp--preset--spacing--40);
+}
+
+/* Banner placeholder */
+.is-style-kompas-banner-placeholder,
+.kompas-banner {
+	min-height: 100px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Section headings with red underline */
+.kompas-section-heading {
+	border-bottom: 3px solid var(--wp--preset--color--primary);
+	padding-bottom: var(--wp--preset--spacing--20);
+	margin-bottom: var(--wp--preset--spacing--50);
+}
+
+/* ========================================================================
+   Post Content
+   ======================================================================== */
+
+.wp-block-post-content p {
+	line-height: 1.8;
+}
+
+.wp-block-post-content blockquote {
+	border-left: 3px solid var(--wp--preset--color--primary);
+	padding-left: var(--wp--preset--spacing--50);
+	font-style: italic;
+	margin: var(--wp--preset--spacing--60) 0;
+}
+
+/* ========================================================================
+   Post Featured Image - Object fit
+   ======================================================================== */
+
+.wp-block-post-featured-image img {
+	object-fit: cover;
+	width: 100%;
+}
+
+/* ========================================================================
+   Author Template - Source Serif overrides
+   ======================================================================== */
+
+.has-source-serif-4-font-family .wp-block-post-title a {
+	font-family: 'Source Serif 4', Georgia, serif;
+}
+
+/* ========================================================================
+   Responsive
+   ======================================================================== */
+
+@media (max-width: 781px) {
+	/* Stack columns on mobile */
+	.wp-block-columns {
+		flex-wrap: wrap;
+	}
+
+	.wp-block-columns > .wp-block-column {
+		flex-basis: 100% !important;
+	}
+
+	/* Reduce padding on mobile */
+	.wp-block-group[style*="padding-right:var(--wp--preset--spacing--50)"] {
+		padding-right: var(--wp--preset--spacing--30) !important;
+		padding-left: var(--wp--preset--spacing--30) !important;
+	}
+
+	/* Footer columns - 2 per row on tablet */
+	@media (min-width: 600px) {
+		.wp-block-columns > .wp-block-column {
+			flex-basis: 48% !important;
+		}
+	}
+}
+
+@media (max-width: 599px) {
+	/* Single column on small mobile */
+	.wp-block-columns > .wp-block-column {
+		flex-basis: 100% !important;
+	}
+
+	/* Horizontal scroll items become smaller */
+	.wp-block-post-featured-image[style*="width:140px"] img,
+	.wp-block-post-featured-image[style*="width:120px"] img {
+		width: 100px;
+	}
+}
+
+/* ========================================================================
+   Query Pagination
+   ======================================================================== */
+
+.wp-block-query-pagination {
+	gap: var(--wp--preset--spacing--30);
+	justify-content: center;
+}
+
+.wp-block-query-pagination-numbers .page-numbers {
+	padding: 0.5rem 0.75rem;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	font-weight: 600;
+	font-size: 0.875rem;
+}
+
+.wp-block-query-pagination-numbers .page-numbers.current {
+	color: var(--wp--preset--color--primary);
+	border-bottom: 2px solid var(--wp--preset--color--primary);
+}
+
+/* ========================================================================
+   Tabs: Najnovije / Najcitanije
+   ======================================================================== */
+
+.kompas-tabs-section .kompas-tabs-nav {
+	display: flex;
+	gap: 0;
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+.kompas-tab-btn {
+	transition: color 0.2s, border-color 0.2s;
+}
+
+.kompas-tab-btn:hover {
+	color: var(--wp--preset--color--dark) !important;
+}
+
+.kompas-tab-panel a:hover {
+	color: var(--wp--preset--color--primary) !important;
+}
+
+.kompas-tab-panel .wp-block-columns {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.kompas-tab-panel .wp-block-column {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+/* ========================================================================
+   Separator
+   ======================================================================== */
+
+.wp-block-separator {
+	border-top: 1px solid var(--wp--preset--color--border);
+	opacity: 1;
+}
+
+/* ========================================================================
+   Archive Layout
+   ======================================================================== */
+
+/* ── Hero Section ─────────────────────────────────────────────── */
+.kompas-archive-hero {
+	display: flex;
+	gap: var(--wp--preset--spacing--50);
+	margin-bottom: var(--wp--preset--spacing--60);
+}
+
+.kompas-archive-hero-left {
+	flex: 0 0 68%;
+	min-width: 0;
+}
+
+.kompas-archive-hero-right {
+	flex: 0 0 calc(32% - var(--wp--preset--spacing--50));
+	display: flex;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--40);
+}
+
+/* Main big post */
+.kompas-archive-hero-main {
+	margin-bottom: var(--wp--preset--spacing--50);
+}
+
+/* 2 horizontal posts below main */
+.kompas-archive-hero-horiz {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--40);
+}
+
+.kompas-archive-card-h {
+	display: flex;
+	gap: var(--wp--preset--spacing--40);
+	align-items: flex-start;
+	padding-bottom: var(--wp--preset--spacing--40);
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+.kompas-archive-card-h__img {
+	flex: 0 0 40%;
+}
+
+.kompas-archive-card-h__text {
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+/* Right sidebar vertical cards */
+.kompas-archive-card-v {
+	padding-bottom: var(--wp--preset--spacing--30);
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+.kompas-archive-card-v:last-child {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+/* ── Shared styles ────────────────────────────────────────────── */
+.kompas-archive-img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 10;
+	object-fit: cover;
+	margin-bottom: var(--wp--preset--spacing--20);
+}
+
+.kompas-archive-img--hero {
+	aspect-ratio: 16 / 9;
+}
+
+.kompas-archive-title {
+	margin: 0 0 0.25rem;
+	line-height: 1.3;
+}
+
+.kompas-archive-title a {
+	color: var(--wp--preset--color--dark);
+	text-decoration: none;
+}
+
+.kompas-archive-title a:hover {
+	color: var(--wp--preset--color--primary);
+}
+
+.kompas-archive-title--lg {
+	font-size: 1.5rem;
+	font-weight: 700;
+}
+
+.kompas-archive-title--md {
+	font-size: 1.125rem;
+	font-weight: 700;
+}
+
+.kompas-archive-title--sm {
+	font-size: 0.875rem;
+	font-weight: 700;
+}
+
+.kompas-archive-excerpt {
+	font-size: 0.875rem;
+	line-height: 1.6;
+	color: var(--wp--preset--color--muted);
+	margin: 0.25rem 0 0;
+}
+
+/* ── Grid Section ─────────────────────────────────────────────── */
+.kompas-archive-grid {
+	margin-top: var(--wp--preset--spacing--60);
+}
+
+.kompas-archive-grid-row {
+	display: grid;
+	gap: var(--wp--preset--spacing--50);
+	margin-bottom: var(--wp--preset--spacing--50);
+}
+
+.kompas-archive-grid-row--4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.kompas-archive-grid-row--2 {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+/* ── Pagination ───────────────────────────────────────────────── */
+.kompas-archive-pagination {
+	margin-top: var(--wp--preset--spacing--60);
+	text-align: center;
+}
+
+.kompas-archive-pagination .page-numbers {
+	display: inline-flex;
+	gap: 0;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	justify-content: center;
+}
+
+.kompas-archive-pagination .page-numbers li {
+	margin: 0;
+}
+
+.kompas-archive-pagination .page-numbers a,
+.kompas-archive-pagination .page-numbers span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.5rem;
+	height: 2.5rem;
+	padding: 0 0.75rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	border: 1px solid var(--wp--preset--color--border);
+	margin-left: -1px;
+}
+
+.kompas-archive-pagination .page-numbers a:hover {
+	background: var(--wp--preset--color--surface);
+	color: var(--wp--preset--color--primary);
+}
+
+.kompas-archive-pagination .page-numbers .current {
+	background: var(--wp--preset--color--primary);
+	color: #fff;
+	border-color: var(--wp--preset--color--primary);
+}
+
+/* ── Archive Responsive ───────────────────────────────────────── */
+@media (max-width: 781px) {
+	.kompas-archive-hero {
+		flex-direction: column;
+	}
+
+	.kompas-archive-hero-left,
+	.kompas-archive-hero-right {
+		flex: 0 0 100%;
+	}
+
+	.kompas-archive-grid-row--4 {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.kompas-archive-grid-row--2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 480px) {
+	.kompas-archive-card-h {
+		flex-direction: column;
+	}
+
+	.kompas-archive-card-h__img {
+		flex: 0 0 auto;
+	}
+
+	.kompas-archive-grid-row--4 {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ========================================================================
+   Social Links
+   ======================================================================== */
+
+.wp-block-social-links.is-style-logos-only .wp-social-link svg {
+	width: 20px;
+	height: 20px;
+}
+
+/* ========================================================================
+   Footer - Dynamic Category Columns with Tags
+   ======================================================================== */
+
+.kompas-footer-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2rem;
+}
+
+.kompas-footer-cat-col {
+	flex: 1 1 auto;
+	min-width: 120px;
+}
+
+.kompas-footer-categories h4 {
+	margin-top: 0;
+	margin-bottom: 0.75rem;
+}
+
+.kompas-footer-categories h4 a:hover,
+.kompas-footer-categories p a:hover {
+	color: var(--wp--preset--color--primary) !important;
+}
+
+@media (max-width: 781px) {
+	.kompas-footer-categories {
+		flex-wrap: wrap;
+	}
+
+	.kompas-footer-cat-col {
+		flex: 0 0 calc(50% - 1rem);
+		margin-bottom: 1.5rem;
+	}
+}
+
+@media (max-width: 480px) {
+	.kompas-footer-cat-col {
+		flex: 0 0 100%;
+	}
+}

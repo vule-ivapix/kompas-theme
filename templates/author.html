@@ -1,0 +1,56 @@
+<!-- wp:template-part {"slug":"header-author","tagName":"header","area":"header"} /-->
+
+<!-- wp:group {"tagName":"main","layout":{"type":"constrained","contentSize":"720px","wideSize":"1000px"},"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","right":"var:preset|spacing|40","bottom":"var:preset|spacing|60","left":"var:preset|spacing|40"}}},"fontFamily":"source-serif-4"} -->
+<main class="wp-block-group has-source-serif-4-font-family" style="padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--40)">
+
+<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"center"},"style":{"spacing":{"margin":{"bottom":"var:preset|spacing|60"}}}} -->
+<div class="wp-block-group" style="margin-bottom:var(--wp--preset--spacing--60)">
+
+<!-- wp:post-author {"showAvatar":true,"showBio":false,"avatarSize":100,"byline":"","textAlign":"center","style":{"spacing":{"margin":{"bottom":"var:preset|spacing|30"}}}} /-->
+
+<!-- wp:query-title {"type":"archive","textAlign":"center","style":{"typography":{"fontSize":"2rem","fontWeight":"400","lineHeight":"1.2"},"spacing":{"margin":{"bottom":"var:preset|spacing|30"}}},"fontFamily":"source-serif-4"} /-->
+
+<!-- wp:term-description {"textAlign":"center","style":{"typography":{"fontSize":"1rem","lineHeight":"1.6"}},"textColor":"muted","fontFamily":"source-serif-4"} /-->
+
+<!-- wp:social-links {"iconColor":"dark","iconColorValue":"#1a1a1a","size":"has-small-icon-size","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|30"}}},"className":"is-style-logos-only","layout":{"type":"flex","justifyContent":"center"}} -->
+<ul class="wp-block-social-links has-small-icon-size has-icon-color is-style-logos-only">
+<!-- wp:social-link {"url":"#","service":"x"} /-->
+<!-- wp:social-link {"url":"#","service":"facebook"} /-->
+<!-- wp:social-link {"url":"#","service":"instagram"} /-->
+</ul>
+<!-- /wp:social-links -->
+
+</div>
+<!-- /wp:group -->
+
+<!-- wp:separator {"backgroundColor":"border","style":{"spacing":{"margin":{"bottom":"var:preset|spacing|60"}}}} -->
+<hr class="wp-block-separator has-text-color has-border-color has-background has-border-background-color" style="margin-bottom:var(--wp--preset--spacing--60)" />
+<!-- /wp:separator -->
+
+<!-- wp:query {"queryId":70,"query":{"perPage":10,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":""},"displayLayout":{"type":"list"}} -->
+<!-- wp:post-template -->
+<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"top"},"style":{"spacing":{"margin":{"bottom":"var:preset|spacing|50"},"padding":{"bottom":"var:preset|spacing|50"},"blockGap":"var:preset|spacing|50"},"border":{"bottom":{"color":"var:preset|color|border","width":"1px"}}}} -->
+<div class="wp-block-group" style="border-bottom-color:var(--wp--preset--color--border);border-bottom-width:1px;margin-bottom:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50)">
+<!-- wp:post-featured-image {"isLink":true,"width":"200px","aspectRatio":"16/10"} /-->
+<!-- wp:group {"layout":{"type":"constrained"},"style":{"layout":{"selfStretch":"fill","flexSize":null}}} -->
+<div class="wp-block-group">
+<!-- wp:post-date {"style":{"typography":{"fontSize":"0.75rem"}},"textColor":"muted"} /-->
+<!-- wp:post-title {"isLink":true,"style":{"typography":{"fontSize":"1.125rem","fontWeight":"400","lineHeight":"1.4"}},"textColor":"dark","fontFamily":"source-serif-4"} /-->
+<!-- wp:post-excerpt {"excerptLength":20,"style":{"typography":{"fontSize":"0.875rem"}},"textColor":"muted","fontFamily":"source-serif-4"} /-->
+</div>
+<!-- /wp:group -->
+</div>
+<!-- /wp:group -->
+<!-- /wp:post-template -->
+
+<!-- wp:query-pagination {"paginationArrow":"arrow","style":{"spacing":{"margin":{"top":"var:preset|spacing|50"}}}} -->
+<!-- wp:query-pagination-previous /-->
+<!-- wp:query-pagination-numbers /-->
+<!-- wp:query-pagination-next /-->
+<!-- /wp:query-pagination -->
+<!-- /wp:query -->
+
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer-author","tagName":"footer","area":"footer"} /-->

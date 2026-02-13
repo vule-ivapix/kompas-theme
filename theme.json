@@ -1,0 +1,267 @@
+{
+  "$schema": "https://schemas.wp.org/wp/6.7/theme.json",
+  "version": 3,
+  "settings": {
+    "appearanceTools": true,
+    "useRootPaddingAwareAlignments": true,
+    "layout": {
+      "contentSize": "720px",
+      "wideSize": "1440px"
+    },
+    "color": {
+      "palette": [
+        { "name": "Primary", "slug": "primary", "color": "#e82d34" },
+        { "name": "Dark", "slug": "dark", "color": "#1a1a1a" },
+        { "name": "Text", "slug": "text", "color": "#222222" },
+        { "name": "Muted", "slug": "muted", "color": "#777777" },
+        { "name": "Border", "slug": "border", "color": "#e0e0e0" },
+        { "name": "Surface", "slug": "surface", "color": "#f5f5f5" },
+        { "name": "White", "slug": "white", "color": "#ffffff" },
+        { "name": "Background", "slug": "background", "color": "#fdfcf9" }
+      ]
+    },
+    "spacing": {
+      "spacingSizes": [
+        { "slug": "10", "size": "0.25rem", "name": "3XS" },
+        { "slug": "20", "size": "0.5rem", "name": "2XS" },
+        { "slug": "30", "size": "0.75rem", "name": "XS" },
+        { "slug": "40", "size": "1rem", "name": "S" },
+        { "slug": "50", "size": "1.5rem", "name": "M" },
+        { "slug": "60", "size": "2rem", "name": "L" },
+        { "slug": "70", "size": "3rem", "name": "XL" },
+        { "slug": "80", "size": "4rem", "name": "2XL" }
+      ],
+      "units": ["px", "em", "rem", "vh", "vw", "%"]
+    },
+    "typography": {
+      "fluid": true,
+      "fontFamilies": [
+        {
+          "name": "Montserrat",
+          "slug": "montserrat",
+          "fontFamily": "'Montserrat', sans-serif",
+          "fontFace": [
+            {
+              "fontFamily": "Montserrat",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2"]
+            },
+            {
+              "fontFamily": "Montserrat",
+              "fontWeight": "500",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtZ6Hw5aXo.woff2"]
+            },
+            {
+              "fontFamily": "Montserrat",
+              "fontWeight": "600",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu170w5aXo.woff2"]
+            },
+            {
+              "fontFamily": "Montserrat",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w5aXo.woff2"]
+            },
+            {
+              "fontFamily": "Montserrat",
+              "fontWeight": "800",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr70w5aXo.woff2"]
+            }
+          ]
+        },
+        {
+          "name": "Source Serif 4",
+          "slug": "source-serif-4",
+          "fontFamily": "'Source Serif 4', Georgia, serif",
+          "fontFace": [
+            {
+              "fontFamily": "Source Serif 4",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
+            },
+            {
+              "fontFamily": "Source Serif 4",
+              "fontWeight": "600",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
+            },
+            {
+              "fontFamily": "Source Serif 4",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
+            },
+            {
+              "fontFamily": "Source Serif 4",
+              "fontWeight": "400",
+              "fontStyle": "italic",
+              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEF02_tTDB4M7-auWDN0ahZJW1ge6NmXpVAHV8aB_GvuzXhE.woff2"]
+            }
+          ]
+        }
+      ],
+      "fontSizes": [
+        { "slug": "x-small", "size": "0.75rem", "name": "X-Small" },
+        { "slug": "small", "size": "0.875rem", "name": "Small" },
+        { "slug": "medium", "size": "1rem", "name": "Medium" },
+        { "slug": "large", "size": "1.125rem", "name": "Large" },
+        { "slug": "x-large", "size": "1.5rem", "name": "X-Large" },
+        { "slug": "xx-large", "size": "2rem", "name": "XX-Large" },
+        { "slug": "xxx-large", "size": "2.5rem", "name": "XXX-Large" }
+      ]
+    },
+    "blocks": {
+      "core/navigation": {
+        "typography": {
+          "fontWeight": true,
+          "letterSpacing": true,
+          "textTransform": true
+        }
+      }
+    }
+  },
+  "styles": {
+    "color": {
+      "background": "var:preset|color|background",
+      "text": "var:preset|color|text"
+    },
+    "typography": {
+      "fontFamily": "var:preset|font-family|montserrat",
+      "lineHeight": "1.6",
+      "fontSize": "var:preset|font-size|medium"
+    },
+    "spacing": {
+      "blockGap": "var:preset|spacing|50"
+    },
+    "elements": {
+      "heading": {
+        "typography": {
+          "fontFamily": "var:preset|font-family|montserrat",
+          "fontWeight": "400",
+          "lineHeight": "1.2"
+        },
+        "color": {
+          "text": "var:preset|color|dark"
+        }
+      },
+      "h1": {
+        "typography": {
+          "fontSize": "var:preset|font-size|xxx-large",
+          "fontWeight": "400"
+        }
+      },
+      "h2": {
+        "typography": {
+          "fontSize": "var:preset|font-size|xx-large",
+          "fontWeight": "400"
+        }
+      },
+      "h3": {
+        "typography": {
+          "fontSize": "var:preset|font-size|x-large",
+          "fontWeight": "400"
+        }
+      },
+      "h4": {
+        "typography": {
+          "fontSize": "var:preset|font-size|large",
+          "fontWeight": "400"
+        }
+      },
+      "h5": {
+        "typography": {
+          "fontSize": "var:preset|font-size|medium",
+          "fontWeight": "400"
+        }
+      },
+      "h6": {
+        "typography": {
+          "fontSize": "var:preset|font-size|small",
+          "fontWeight": "400"
+        }
+      },
+      "link": {
+        "color": {
+          "text": "var:preset|color|dark"
+        },
+        ":hover": {
+          "color": {
+            "text": "var:preset|color|primary"
+          }
+        },
+        "typography": {
+          "textDecoration": "none"
+        }
+      }
+    },
+    "blocks": {
+      "core/post-title": {
+        "typography": {
+          "fontWeight": "700"
+        },
+        "elements": {
+          "link": {
+            "color": {
+              "text": "var:preset|color|dark"
+            },
+            ":hover": {
+              "color": {
+                "text": "var:preset|color|primary"
+              }
+            },
+            "typography": {
+              "textDecoration": "none"
+            }
+          }
+        }
+      },
+      "core/post-date": {
+        "color": {
+          "text": "var:preset|color|muted"
+        },
+        "typography": {
+          "fontSize": "var:preset|font-size|x-small"
+        }
+      },
+      "core/post-terms": {
+        "typography": {
+          "fontSize": "var:preset|font-size|x-small",
+          "textTransform": "uppercase",
+          "letterSpacing": "0.05em"
+        }
+      },
+      "core/post-author-name": {
+        "typography": {
+          "fontSize": "var:preset|font-size|small"
+        }
+      },
+      "core/separator": {
+        "color": {
+          "text": "var:preset|color|border"
+        }
+      },
+      "core/navigation": {
+        "typography": {
+          "fontSize": "var:preset|font-size|small",
+          "fontWeight": "700",
+          "textTransform": "uppercase",
+          "letterSpacing": "0.02em"
+        }
+      }
+    }
+  },
+  "templateParts": [
+    { "name": "header", "title": "Header", "area": "header" },
+    { "name": "header-author", "title": "Header - Author", "area": "header" },
+    { "name": "footer", "title": "Footer", "area": "footer" },
+    { "name": "footer-author", "title": "Footer - Author", "area": "footer" }
+  ],
+  "customTemplates": [
+    { "name": "page-no-title", "title": "Page (No Title)", "postTypes": ["page"] }
+  ]
+}

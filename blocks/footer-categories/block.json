@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/footer-categories",
+	"title": "Kompas Footer Kategorije",
+	"category": "theme",
+	"description": "Prikazuje izabrane kategorije sa tagovima u footeru.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"selectedIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/footer-categories.php"
+}
