@@ -1,0 +1,16 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/mobile-nav",
+	"title": "Kompas Mobile Nav",
+	"category": "theme",
+	"description": "Mobilna navigacija sa hamburger menijem.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/mobile-nav.php"
+}

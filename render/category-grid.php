@@ -1,0 +1,97 @@
+<?php
+/**
+ * Render: kompas/category-grid
+ *
+ * For each selected category, renders a section with:
+ * - Category title with red underline
+ * - Row 1: 2 large posts (image + title + excerpt)
+ * - Row 2: 4 small posts (image + title)
+ */
+$selected = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
+$per_cat  = isset( $attributes['postsPerCategory'] ) ? (int) $attributes['postsPerCategory'] : 6;
+
+if ( empty( $selected ) ) {
+	// Fallback: top-level categories.
+	$cats = get_categories( array(
+		'hide_empty' => false,
+		'parent'     => 0,
+		'number'     => 4,
+	) );
+	$selected = wp_list_pluck( $cats, 'term_id' );
+}
+
+if ( empty( $selected ) ) {
+	return;
+}
+
+foreach ( $selected as $cat_id ) :
+	$cat = get_category( $cat_id );
+	if ( ! $cat || is_wp_error( $cat ) ) {
+		continue;
+	}
+
+	$posts = get_posts( array(
+		'category'       => $cat_id,
+		'posts_per_page' => $per_cat,
+		'post_status'    => 'publish',
+		'orderby'        => 'date',
+		'order'          => 'DESC',
+	) );
+
+	if ( empty( $posts ) ) {
+		continue;
+	}
+
+	$large = array_slice( $posts, 0, 2 );
+	$small = array_slice( $posts, 2, 4 );
+	$cat_link = get_category_link( $cat_id );
+?>
+<div class="kompas-catgrid">
+
+	<div class="kompas-catgrid__header">
+		<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-catgrid__title">
+			<?php echo esc_html( mb_strtoupper( $cat->name ) ); ?>
+		</a>
+	</div>
+
+	<!-- 2 large posts -->
+	<div class="kompas-catgrid__row-large">
+		<?php foreach ( $large as $p ) : ?>
+		<div class="kompas-catgrid__item-large">
+			<?php if ( has_post_thumbnail( $p ) ) : ?>
+			<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" class="kompas-catgrid__img-link">
+				<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'large' ) ); ?>"
+					 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
+					 class="kompas-catgrid__img" />
+			</a>
+			<?php endif; ?>
+			<h3 class="kompas-catgrid__post-title kompas-catgrid__post-title--lg">
+				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+			</h3>
+			<p class="kompas-catgrid__excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $p ), 25 ) ); ?></p>
+		</div>
+		<?php endforeach; ?>
+	</div>
+
+	<?php if ( ! empty( $small ) ) : ?>
+	<!-- 4 small posts -->
+	<div class="kompas-catgrid__row-small">
+		<?php foreach ( $small as $p ) : ?>
+		<div class="kompas-catgrid__item-small">
+			<?php if ( has_post_thumbnail( $p ) ) : ?>
+			<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" class="kompas-catgrid__img-link">
+				<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'medium' ) ); ?>"
+					 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
+					 class="kompas-catgrid__img" />
+			</a>
+			<?php endif; ?>
+			<h4 class="kompas-catgrid__post-title kompas-catgrid__post-title--sm">
+				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+			</h4>
+		</div>
+		<?php endforeach; ?>
+	</div>
+	<?php endif; ?>
+
+</div>
+<?php endforeach;

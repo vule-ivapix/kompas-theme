@@ -29,5 +29,6 @@
 	},
 	"textdomain": "kompas",
 	"editorScript": "kompas-blocks-editor",
+	"editorStyle": "file:./editor.css",
 	"render": "file:../../render/rec-urednika.php"
 }

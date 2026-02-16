@@ -5,6 +5,15 @@
 $post_ids = ! empty( $attributes['postIds'] ) ? array_map( 'absint', $attributes['postIds'] ) : array();
 $count    = isset( $attributes['count'] ) ? (int) $attributes['count'] : 3;
 
+// Fetch the kolumne category once (explicit slug arg bypasses the hidden-categories filter).
+$kolumne_cat = get_terms( array(
+	'taxonomy'   => 'category',
+	'slug'       => 'kolumne',
+	'number'     => 1,
+	'hide_empty' => false,
+) );
+$kolumne_term = ( ! empty( $kolumne_cat ) && ! is_wp_error( $kolumne_cat ) ) ? $kolumne_cat[0] : null;
+
 if ( ! empty( $post_ids ) ) {
 	$posts = get_posts( array(
 		'post__in'       => $post_ids,
@@ -14,9 +23,8 @@ if ( ! empty( $post_ids ) ) {
 	) );
 } else {
 	// Fallback: latest posts from "kolumne" category.
-	$cat = get_category_by_slug( 'kolumne' );
 	$posts = get_posts( array(
-		'category'       => $cat ? $cat->term_id : 0,
+		'category'       => $kolumne_term ? $kolumne_term->term_id : 0,
 		'posts_per_page' => $count,
 		'post_status'    => 'publish',
 	) );
@@ -26,12 +34,7 @@ if ( empty( $posts ) ) {
 	return '';
 }
 
-// Get the kolumne category link for "POGLEDAJ SVE".
-$cat_link = '';
-$cat = get_category_by_slug( 'kolumne' );
-if ( $cat ) {
-	$cat_link = get_category_link( $cat->term_id );
-}
+$cat_link = $kolumne_term ? get_category_link( $kolumne_term->term_id ) : '';
 ?>
 <div class="kompas-kolumne">
 	<h3 class="kompas-kolumne__title">КОЛУМНЕ</h3>

@@ -1,0 +1,19 @@
+/* Editor styles for kompas/rec-urednika */
+.wp-block-kompas-rec-urednika {
+	max-width: 300px;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__image {
+	width: 100%;
+	height: auto;
+	max-height: 200px;
+	object-fit: cover;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__title {
+	font-size: 0.875rem;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__more {
+	font-size: 0.6875rem;
+}

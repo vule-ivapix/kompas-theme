@@ -1,0 +1,26 @@
+/* Editor styles for kompas/kolumne */
+.wp-block-kompas-kolumne {
+	max-width: 300px;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__avatar {
+	width: 60px;
+	height: 60px;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__title {
+	font-size: 0.875rem;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__name {
+	font-size: 0.75rem;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__excerpt {
+	font-size: 0.75rem;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__more {
+	font-size: 0.6875rem;
+	padding: 0.5rem 1rem;
+}

@@ -259,7 +259,7 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_tabs_script' );
  * Each panel uses the 2+4 grid layout (2 large + 4 small).
  */
 function kompas_render_tabs_block( $attributes ) {
-	$count = isset( $attributes['count'] ) ? (int) $attributes['count'] : 6;
+	$count = isset( $attributes['count'] ) ? (int) $attributes['count'] : 4;
 
 	// Query: Najnovije (by date).
 	$najnovije = get_posts( array(
@@ -301,7 +301,7 @@ function kompas_render_tabs_block( $attributes ) {
 }
 
 /**
- * Render 2+4 grid of posts (2 large with excerpt, 4 small with just title).
+ * Render a single row of posts (4 columns: image + title).
  *
  * @param WP_Post[] $posts Array of post objects.
  * @return string          HTML markup.
@@ -311,34 +311,10 @@ function kompas_render_posts_grid( $posts ) {
 		return '<p style="color:var(--wp--preset--color--muted)">Нема постова за приказ.</p>';
 	}
 
-	$large = array_slice( $posts, 0, 2 );
-	$small = array_slice( $posts, 2, 4 );
-
 	ob_start();
 	?>
-	<!-- Red 1: 2 kolone, vece vesti -->
-	<div class="wp-block-columns" style="margin-bottom:var(--wp--preset--spacing--50)">
-		<?php foreach ( $large as $post ) : ?>
-		<div class="wp-block-column">
-			<?php if ( has_post_thumbnail( $post ) ) : ?>
-			<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" style="display:block;margin-bottom:var(--wp--preset--spacing--30)">
-				<img src="<?php echo esc_url( get_the_post_thumbnail_url( $post, 'large' ) ); ?>"
-					 alt="<?php echo esc_attr( get_the_title( $post ) ); ?>"
-					 style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block" />
-			</a>
-			<?php endif; ?>
-			<h3 style="font-size:1.25rem;font-weight:700;line-height:1.3;margin:0 0 0.5rem">
-				<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( get_the_title( $post ) ); ?></a>
-			</h3>
-			<p style="font-size:0.875rem;line-height:1.6;color:var(--wp--preset--color--muted);margin:0"><?php echo esc_html( wp_trim_words( get_the_excerpt( $post ), 25 ) ); ?></p>
-		</div>
-		<?php endforeach; ?>
-	</div>
-
-	<!-- Red 2: 4 kolone, manje vesti -->
-	<?php if ( ! empty( $small ) ) : ?>
 	<div class="wp-block-columns" style="gap:var(--wp--preset--spacing--40)">
-		<?php foreach ( $small as $post ) : ?>
+		<?php foreach ( $posts as $post ) : ?>
 		<div class="wp-block-column">
 			<?php if ( has_post_thumbnail( $post ) ) : ?>
 			<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" style="display:block;margin-bottom:var(--wp--preset--spacing--20)">
@@ -353,7 +329,6 @@ function kompas_render_posts_grid( $posts ) {
 		</div>
 		<?php endforeach; ?>
 	</div>
-	<?php endif; ?>
 	<?php
 	return ob_get_clean();
 }
@@ -598,7 +573,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 
 		<?php
 		// ── BANNER ──────────────────────────────────────────────
-		echo do_blocks( '<!-- wp:pattern {"slug":"kompas/banner-placeholder"} /-->' );
+		echo do_blocks( '<!-- wp:kompas/banner /-->' );
 
 		// ── GRID: from archive query (hero posts excluded) ──────
 		if ( ! empty( $grid_posts ) ) :
@@ -730,20 +705,31 @@ function kompas_render_header_tags( $attributes = array() ) {
 	$ids = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
 
 	if ( empty( $ids ) ) {
+		// Fallback: show most popular tags.
+		$tags = get_tags( array(
+			'orderby'    => 'count',
+			'order'      => 'DESC',
+			'number'     => 10,
+			'hide_empty' => true,
+		) );
+	} else {
+		$tags = array();
+		foreach ( $ids as $id ) {
+			$tag = get_tag( $id );
+			if ( $tag && ! is_wp_error( $tag ) ) {
+				$tags[] = $tag;
+			}
+		}
+	}
+
+	if ( empty( $tags ) ) {
 		return '';
 	}
 
 	$links = array();
-	foreach ( $ids as $id ) {
-		$tag = get_tag( $id );
-		if ( $tag && ! is_wp_error( $tag ) ) {
-			$links[] = '<a href="' . esc_url( get_tag_link( $tag->term_id ) ) . '" class="kompas-header-tag-link">'
-				. esc_html( mb_strtoupper( $tag->name ) ) . '</a>';
-		}
-	}
-
-	if ( empty( $links ) ) {
-		return '';
+	foreach ( $tags as $tag ) {
+		$links[] = '<a href="' . esc_url( get_tag_link( $tag->term_id ) ) . '" class="kompas-header-tag-link">'
+			. esc_html( mb_strtoupper( $tag->name ) ) . '</a>';
 	}
 
 	return '<nav class="kompas-header-tags" aria-label="Sekundarna navigacija">'
@@ -778,11 +764,57 @@ add_action( 'init', 'kompas_register_blocks_editor_script', 5 );
 /**
  * Register Kolumne and Reč Urednika blocks.
  */
+function kompas_register_category_grid_block() {
+	register_block_type( get_theme_file_path( 'blocks/category-grid' ) );
+}
+add_action( 'init', 'kompas_register_category_grid_block' );
+
 function kompas_register_kolumne_rec_blocks() {
 	register_block_type( get_theme_file_path( 'blocks/kolumne' ) );
 	register_block_type( get_theme_file_path( 'blocks/rec-urednika' ) );
 }
 add_action( 'init', 'kompas_register_kolumne_rec_blocks' );
+
+/**
+ * Register Banner block.
+ */
+function kompas_register_banner_block() {
+	register_block_type( get_theme_file_path( 'blocks/banner' ) );
+}
+add_action( 'init', 'kompas_register_banner_block' );
+
+/**
+ * Register Mobile Nav block.
+ */
+function kompas_register_mobile_nav_block() {
+	register_block_type( get_theme_file_path( 'blocks/mobile-nav' ) );
+}
+add_action( 'init', 'kompas_register_mobile_nav_block' );
+
+/**
+ * Enqueue mobile nav script.
+ */
+function kompas_enqueue_mobile_nav_script() {
+	wp_enqueue_script(
+		'kompas-mobile-nav',
+		get_theme_file_uri( 'assets/js/mobile-nav.js' ),
+		array(),
+		KOMPAS_VERSION,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_mobile_nav_script' );
+
+/**
+ * Auto-assign single-kolumne template for posts in the "kolumne" category.
+ */
+function kompas_kolumne_single_template( $templates ) {
+	if ( is_singular( 'post' ) && has_category( 'kolumne' ) ) {
+		array_unshift( $templates, 'single-kolumne' );
+	}
+	return $templates;
+}
+add_filter( 'single_template_hierarchy', 'kompas_kolumne_single_template' );
 
 /**
  * Exclude "kolumne" and "rec-urednika" categories from public category queries

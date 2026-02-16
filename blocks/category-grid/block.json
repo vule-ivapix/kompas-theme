@@ -1,26 +1,25 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
-	"name": "kompas/kolumne",
-	"title": "Kompas Kolumne",
+	"name": "kompas/category-grid",
+	"title": "Kompas Category Grid",
 	"category": "theme",
-	"description": "Prikazuje kolumniste sa avatarima i excerpt-ima. Biraš postove ručno.",
+	"description": "Za svaku izabranu kategoriju prikazuje grid vesti (2 velike + 4 male).",
 	"supports": {
 		"html": false,
 		"inserter": true
 	},
 	"attributes": {
-		"postIds": {
+		"selectedIds": {
 			"type": "array",
 			"default": []
 		},
-		"count": {
+		"postsPerCategory": {
 			"type": "number",
-			"default": 3
+			"default": 6
 		}
 	},
 	"textdomain": "kompas",
 	"editorScript": "kompas-blocks-editor",
-	"editorStyle": "file:./editor.css",
-	"render": "file:../../render/kolumne.php"
+	"render": "file:../../render/category-grid.php"
 }

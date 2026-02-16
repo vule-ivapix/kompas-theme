@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/banner",
+	"title": "Kompas Banner",
+	"category": "theme",
+	"description": "Banner placeholder (horizontal or square).",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"variant": {
+			"type": "string",
+			"default": "horizontal"
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/banner.php"
+}
