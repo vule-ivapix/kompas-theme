@@ -21,6 +21,13 @@ function kompas_enqueue_styles() {
 		array(),
 		KOMPAS_VERSION
 	);
+	wp_enqueue_script(
+		'kompas-script-toggle',
+		get_theme_file_uri( 'assets/js/script-toggle.js' ),
+		array(),
+		KOMPAS_VERSION,
+		true
+	);
 }
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_styles' );
 
@@ -170,6 +177,37 @@ function kompas_register_block_styles() {
 	) );
 }
 add_action( 'init', 'kompas_register_block_styles' );
+
+/**
+ * Register Gallery Slider block.
+ */
+function kompas_register_gallery_slider_block() {
+	wp_register_script(
+		'kompas-gallery-editor',
+		get_theme_file_uri( 'assets/js/gallery-editor.js' ),
+		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components' ),
+		KOMPAS_VERSION,
+		true
+	);
+	register_block_type( get_theme_file_path( 'blocks/gallery-slider' ) );
+}
+add_action( 'init', 'kompas_register_gallery_slider_block' );
+
+/**
+ * Enqueue gallery slider frontend script.
+ */
+function kompas_enqueue_gallery_slider_script() {
+	if ( is_singular() ) {
+		wp_enqueue_script(
+			'kompas-gallery-slider',
+			get_theme_file_uri( 'assets/js/gallery-slider.js' ),
+			array(),
+			KOMPAS_VERSION,
+			true
+		);
+	}
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_gallery_slider_script' );
 
 /**
  * Register post meta for view count (for "most read" functionality).
@@ -736,3 +774,43 @@ function kompas_register_blocks_editor_script() {
 	);
 }
 add_action( 'init', 'kompas_register_blocks_editor_script', 5 );
+
+/**
+ * Register Kolumne and Reč Urednika blocks.
+ */
+function kompas_register_kolumne_rec_blocks() {
+	register_block_type( get_theme_file_path( 'blocks/kolumne' ) );
+	register_block_type( get_theme_file_path( 'blocks/rec-urednika' ) );
+}
+add_action( 'init', 'kompas_register_kolumne_rec_blocks' );
+
+/**
+ * Exclude "kolumne" and "rec-urednika" categories from public category queries
+ * (widgets, default category lists, etc.) but NOT from admin or explicit queries.
+ */
+function kompas_exclude_hidden_categories( $clauses, $taxonomies, $args ) {
+	if ( is_admin() ) {
+		return $clauses;
+	}
+
+	// Only filter category taxonomy.
+	if ( ! in_array( 'category', (array) $taxonomies, true ) ) {
+		return $clauses;
+	}
+
+	// Skip if specific IDs/slugs are requested (e.g., block attributes).
+	if ( ! empty( $args['include'] ) || ! empty( $args['slug'] ) ) {
+		return $clauses;
+	}
+
+	global $wpdb;
+	$hidden_slugs = array( 'kolumne', 'rec-urednika' );
+	$placeholders = implode( ',', array_fill( 0, count( $hidden_slugs ), '%s' ) );
+	$clauses['where'] .= $wpdb->prepare(
+		" AND t.slug NOT IN ($placeholders)",
+		$hidden_slugs
+	);
+
+	return $clauses;
+}
+add_filter( 'terms_clauses', 'kompas_exclude_hidden_categories', 10, 3 );

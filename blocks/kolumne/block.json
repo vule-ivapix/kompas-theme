@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/kolumne",
+	"title": "Kompas Kolumne",
+	"category": "theme",
+	"description": "Prikazuje kolumniste sa avatarima i excerpt-ima. Biraš postove ručno.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"postIds": {
+			"type": "array",
+			"default": []
+		},
+		"count": {
+			"type": "number",
+			"default": 3
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/kolumne.php"
+}

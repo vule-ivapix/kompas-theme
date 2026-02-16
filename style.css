@@ -39,14 +39,11 @@ img {
 
 /* Constrain header content so tag row starts after the logo column */
 .kompas-header {
-	max-width: var(--wp--style--global--wide-size);
-	margin: 0 auto;
+	width: 100%;
 }
 
 /* Header columns row */
 .kompas-header-row.wp-block-columns {
-	margin: 0 auto;
-	max-width: var(--wp--style--global--wide-size);
 	border-bottom: 1px solid var(--wp--preset--color--border);
 }
 
@@ -319,25 +316,47 @@ img {
 }
 
 /* ========================================================================
-   Query Pagination
+   Pagination (unified for query-pagination and custom archive)
    ======================================================================== */
 
 .wp-block-query-pagination {
-	gap: var(--wp--preset--spacing--30);
+	gap: 0;
 	justify-content: center;
 }
 
-.wp-block-query-pagination-numbers .page-numbers {
-	padding: 0.5rem 0.75rem;
+.wp-block-query-pagination-numbers {
+	display: inline-flex;
+	gap: 0;
+}
+
+.wp-block-query-pagination-numbers .page-numbers,
+.wp-block-query-pagination-next,
+.wp-block-query-pagination-previous {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.5rem;
+	height: 2.5rem;
+	padding: 0 0.75rem;
+	font-size: 0.875rem;
+	font-weight: 600;
 	text-decoration: none;
 	color: var(--wp--preset--color--dark);
-	font-weight: 600;
-	font-size: 0.875rem;
+	border: 1px solid var(--wp--preset--color--border);
+	margin-left: -1px;
+}
+
+.wp-block-query-pagination-numbers .page-numbers:hover,
+.wp-block-query-pagination-next:hover,
+.wp-block-query-pagination-previous:hover {
+	background: var(--wp--preset--color--surface);
+	color: var(--wp--preset--color--primary);
 }
 
 .wp-block-query-pagination-numbers .page-numbers.current {
-	color: var(--wp--preset--color--primary);
-	border-bottom: 2px solid var(--wp--preset--color--primary);
+	background: var(--wp--preset--color--primary);
+	color: #fff;
+	border-color: var(--wp--preset--color--primary);
 }
 
 /* ========================================================================
@@ -379,6 +398,128 @@ img {
 .wp-block-separator {
 	border-top: 1px solid var(--wp--preset--color--border);
 	opacity: 1;
+}
+
+/* ========================================================================
+   Tag Pills
+   ======================================================================== */
+
+.kompas-tag-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.kompas-tag-pills a {
+	display: inline-block;
+	padding: 0.5rem 1.25rem;
+	background: #b0b0b0;
+	color: #fff !important;
+	text-decoration: none;
+	font-size: 0.875rem;
+	font-weight: 500;
+	line-height: 1.3;
+	transition: background 0.15s;
+}
+
+.kompas-tag-pills a:hover {
+	background: var(--wp--preset--color--primary);
+}
+
+/* WP outputs tags as comma-separated links with .wp-block-post-terms */
+.kompas-tag-pills.wp-block-post-terms {
+	gap: 0.5rem;
+}
+
+.kompas-tag-pills.wp-block-post-terms .wp-block-post-terms__separator {
+	display: none;
+}
+
+/* ========================================================================
+   Gallery Slider
+   ======================================================================== */
+
+.kompas-gallery-slider {
+	margin: var(--wp--preset--spacing--50) 0;
+}
+
+.kompas-gallery-slider__viewport {
+	position: relative;
+	overflow: hidden;
+	background: #f0f0f0;
+	border: 1px solid var(--wp--preset--color--border);
+}
+
+.kompas-gallery-slider__img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+/* Arrows */
+.kompas-gallery-slider__arrow {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	background: rgba(255, 255, 255, 0.85);
+	border: none;
+	width: 48px;
+	height: 48px;
+	font-size: 2rem;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--wp--preset--color--dark);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.15s;
+	z-index: 2;
+}
+
+.kompas-gallery-slider__arrow:hover {
+	background: rgba(255, 255, 255, 1);
+}
+
+.kompas-gallery-slider__arrow--prev {
+	left: 0;
+}
+
+.kompas-gallery-slider__arrow--next {
+	right: 0;
+}
+
+/* Fraction counter */
+.kompas-gallery-slider__fraction {
+	position: absolute;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	padding: 4px 14px;
+	border-radius: 4px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	z-index: 2;
+}
+
+/* Credit */
+.kompas-gallery-slider__credit {
+	font-size: 0.8125rem;
+	color: var(--wp--preset--color--muted);
+	margin: 0.5rem 0 0;
+	line-height: 1.4;
+}
+
+@media (max-width: 599px) {
+	.kompas-gallery-slider__arrow {
+		width: 36px;
+		height: 36px;
+		font-size: 1.5rem;
+	}
 }
 
 /* ========================================================================
@@ -641,4 +782,140 @@ img {
 	.kompas-footer-cat-col {
 		flex: 0 0 100%;
 	}
+}
+
+/* ========================================================================
+   Kolumne
+   ======================================================================== */
+
+.kompas-kolumne {
+	padding: var(--wp--preset--spacing--50) 0;
+}
+
+.kompas-kolumne__title {
+	font-size: 1rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	border-bottom: 3px solid var(--wp--preset--color--primary);
+	padding-bottom: var(--wp--preset--spacing--20);
+	margin: 0 0 var(--wp--preset--spacing--50);
+}
+
+.kompas-kolumne__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--40);
+}
+
+.kompas-kolumne__item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--wp--preset--spacing--30);
+	text-decoration: none;
+	color: inherit;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.kompas-kolumne__item:hover .kompas-kolumne__name {
+	color: var(--wp--preset--color--primary);
+}
+
+.kompas-kolumne__avatar {
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.kompas-kolumne__text {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
+.kompas-kolumne__name {
+	font-size: 0.8125rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--wp--preset--color--dark);
+	transition: color 0.15s;
+}
+
+.kompas-kolumne__excerpt {
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--wp--preset--color--muted);
+}
+
+.kompas-kolumne__more {
+	display: inline-block;
+	margin-top: var(--wp--preset--spacing--50);
+	padding: 0.625rem 1.5rem;
+	border: 2px solid var(--wp--preset--color--dark);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	transition: background 0.15s, color 0.15s;
+}
+
+.kompas-kolumne__more:hover {
+	background: var(--wp--preset--color--dark);
+	color: #fff;
+}
+
+
+/* ========================================================================
+   Reč Urednika
+   ======================================================================== */
+
+.kompas-rec-urednika {
+	padding: var(--wp--preset--spacing--50) 0;
+}
+
+.kompas-rec-urednika__title {
+	font-size: 1rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--wp--preset--color--primary);
+	border-bottom: 3px solid var(--wp--preset--color--primary);
+	padding-bottom: var(--wp--preset--spacing--20);
+	margin: 0 0 var(--wp--preset--spacing--50);
+}
+
+.kompas-rec-urednika__image-link {
+	display: block;
+}
+
+.kompas-rec-urednika__image {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.kompas-rec-urednika__more {
+	display: inline-block;
+	margin-top: var(--wp--preset--spacing--40);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	border-bottom: 2px solid var(--wp--preset--color--dark);
+	padding-bottom: 2px;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.kompas-rec-urednika__more:hover {
+	color: var(--wp--preset--color--primary);
+	border-color: var(--wp--preset--color--primary);
 }

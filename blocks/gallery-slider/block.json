@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/gallery-slider",
+	"title": "Kompas Galerija",
+	"category": "media",
+	"description": "Galerija slika sa strelicama, frakcijom i izvorom fotografije.",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"inserter": true
+	},
+	"attributes": {
+		"images": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-gallery-editor",
+	"render": "file:../../render/gallery-slider.php"
+}

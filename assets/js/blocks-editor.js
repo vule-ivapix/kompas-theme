@@ -211,6 +211,90 @@
 		);
 	}
 
+	/* ── Kolumne ────────────────────────────────────────────── */
+	blocks.registerBlockType( 'kompas/kolumne', {
+		edit: function( props ) {
+			var blockProps = useBlockProps();
+			var postIds    = props.attributes.postIds || [];
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Kolumne postovi', initialOpen: true },
+						el( HeroPostPicker, {
+							selectedIds: postIds,
+							max: 10,
+							onChange: function( next ) {
+								props.setAttributes( { postIds: next } );
+							}
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+							'Izaberite postove čiji će se autori prikazati u sekciji Kolumne.'
+						)
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						block:      'kompas/kolumne',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	/* ── Reč Urednika ───────────────────────────────────────── */
+	var TextControl = components.TextControl;
+
+	blocks.registerBlockType( 'kompas/rec-urednika', {
+		edit: function( props ) {
+			var blockProps = useBlockProps();
+			var postId     = props.attributes.postId || 0;
+
+			// Reuse HeroPostPicker with max=1, convert single-element array.
+			var selectedIds = postId ? [ postId ] : [];
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Reč urednika', initialOpen: true },
+						el( TextControl, {
+							label: 'Naslov sekcije',
+							value: props.attributes.title || '',
+							onChange: function( v ) { props.setAttributes( { title: v } ); },
+						} ),
+						el( TextControl, {
+							label: 'Tekst linka',
+							value: props.attributes.linkText || '',
+							onChange: function( v ) { props.setAttributes( { linkText: v } ); },
+						} ),
+						el( TextControl, {
+							label: 'Slug kategorije',
+							value: props.attributes.categorySlug || '',
+							onChange: function( v ) { props.setAttributes( { categorySlug: v } ); },
+						} ),
+						el( HeroPostPicker, {
+							selectedIds: selectedIds,
+							max: 1,
+							onChange: function( next ) {
+								props.setAttributes( { postId: next.length ? next[0] : 0 } );
+							}
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+							'Izaberite post koji će biti prikazan. Ako nije izabran, uzima se najnoviji iz kategorije.'
+						)
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						block:      'kompas/rec-urednika',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
 	/* ── Archive Layout ──────────────────────────────────────── */
 	blocks.registerBlockType( 'kompas/archive-layout', {
 		edit: function( props ) {

@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/rec-urednika",
+	"title": "Kompas Reč Urednika",
+	"category": "theme",
+	"description": "Prikazuje poslednji post iz kategorije Reč urednika sa featured slikom.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"postId": {
+			"type": "number",
+			"default": 0
+		},
+		"title": {
+			"type": "string",
+			"default": "РЕЧ ГЛАВНЕ УРЕДНИЦЕ"
+		},
+		"linkText": {
+			"type": "string",
+			"default": "ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ"
+		},
+		"categorySlug": {
+			"type": "string",
+			"default": "rec-urednika"
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/rec-urednika.php"
+}
