@@ -37,7 +37,9 @@ if ( $cat ) {
 }
 ?>
 <div class="kompas-rec-urednika">
-	<h3 class="kompas-rec-urednika__title"><?php echo esc_html( $title ); ?></h3>
+	<div class="kompas-rec-urednika__heading kompas-section-topline">
+		<h3 class="kompas-rec-urednika__title"><?php echo esc_html( $title ); ?></h3>
+	</div>
 
 	<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" class="kompas-rec-urednika__image-link">
 		<?php if ( $thumb_url ) : ?>

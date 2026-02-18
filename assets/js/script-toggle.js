@@ -67,9 +67,21 @@
 			return;
 		}
 
-		// Skip script, style, textarea, input, svg.
+		// Skip script-like/contentless nodes.
 		var tag = node.tagName;
-		if ( tag && /^(SCRIPT|STYLE|TEXTAREA|INPUT|SVG|NOSCRIPT)$/i.test( tag ) ) {
+		if ( tag && /^(SCRIPT|STYLE|SVG|NOSCRIPT)$/i.test( tag ) ) {
+			return;
+		}
+
+		// Do not convert user-entered form values in generic walk.
+		if ( tag && /^(TEXTAREA|INPUT)$/i.test( tag ) ) {
+			if ( node.nodeType === 1 ) {
+				[ 'placeholder', 'title', 'alt' ].forEach( function( attr ) {
+					if ( node.hasAttribute( attr ) ) {
+						node.setAttribute( attr, converter( node.getAttribute( attr ) ) );
+					}
+				} );
+			}
 			return;
 		}
 
@@ -88,13 +100,86 @@
 		}
 	}
 
-	var currentScript = 'cyr'; // Default.
+	function syncSearchInputsForScript( script, convertValues ) {
+		var converter = script === 'lat' ? cyrillicToLatin : latinToCyrillic;
+		var lang      = script === 'lat' ? 'sr-Latn' : 'sr-Cyrl';
 
-	// Read saved preference.
+		document.querySelectorAll( '.kompas-search .wp-block-search__input, .kompas-mobile-search__input' ).forEach( function( input ) {
+			input.setAttribute( 'lang', lang );
+
+			if ( input.hasAttribute( 'placeholder' ) ) {
+				input.setAttribute( 'placeholder', converter( input.getAttribute( 'placeholder' ) ) );
+			}
+
+			if ( convertValues && input.value ) {
+				input.value = converter( input.value );
+			}
+		} );
+	}
+
+	function bindSearchInputHandlers() {
+		document.querySelectorAll( '.kompas-search .wp-block-search__input, .kompas-mobile-search__input' ).forEach( function( input ) {
+			if ( input.dataset.kompasScriptBound === '1' ) {
+				return;
+			}
+			input.dataset.kompasScriptBound = '1';
+
+			input.addEventListener( 'input', function() {
+				if ( currentScript !== 'cyr' ) {
+					return;
+				}
+
+				var previous = input.value;
+				var converted = latinToCyrillic( previous );
+				if ( converted === previous ) {
+					return;
+				}
+
+				var cursor = input.selectionStart;
+				var nextCursor = null;
+				if ( typeof cursor === 'number' ) {
+					nextCursor = latinToCyrillic( previous.slice( 0, cursor ) ).length;
+				}
+
+				input.value = converted;
+				if ( nextCursor !== null && input === document.activeElement ) {
+					try {
+						input.setSelectionRange( nextCursor, nextCursor );
+					} catch ( e ) {}
+				}
+			} );
+
+			var form = input.closest( 'form' );
+			if ( form && form.dataset.kompasSearchBound !== '1' ) {
+				form.dataset.kompasSearchBound = '1';
+				form.addEventListener( 'submit', function() {
+					var field = form.querySelector( '.wp-block-search__input, input[name="s"], input[type="search"]' );
+					if ( ! field || ! field.value ) {
+						return;
+					}
+
+					if ( currentScript === 'lat' ) {
+						field.value = cyrillicToLatin( field.value );
+					} else {
+						field.value = latinToCyrillic( field.value );
+					}
+				} );
+			}
+		} );
+	}
+
+	function resolveInitialScript() {
+		if ( document.querySelector( '.kompas-header .kompas-search .wp-block-search__input' ) ) {
+			return 'cyr';
+		}
+		return currentScript;
+	}
+
+	var currentScript = 'cyr'; // Default.
 	try {
 		var saved = localStorage.getItem( 'kompas_script' );
-		if ( saved === 'lat' ) {
-			currentScript = 'lat';
+		if ( saved === 'lat' || saved === 'cyr' ) {
+			currentScript = saved;
 		}
 	} catch ( e ) {}
 
@@ -116,6 +201,9 @@
 				el.innerHTML = '<strong>ЋИР</strong>/Лат';
 			}
 		} );
+
+		bindSearchInputHandlers();
+		syncSearchInputsForScript( script, true );
 	}
 
 	// Bind click on toggle(s).
@@ -126,14 +214,12 @@
 		applyScript( currentScript === 'cyr' ? 'lat' : 'cyr' );
 	} );
 
-	// Apply on load if saved as Latin.
-	if ( currentScript === 'lat' ) {
-		if ( document.readyState === 'loading' ) {
-			document.addEventListener( 'DOMContentLoaded', function() {
-				applyScript( 'lat' );
-			} );
-		} else {
-			applyScript( 'lat' );
-		}
+	// Start with saved script, otherwise Cyrillic default.
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', function() {
+			applyScript( resolveInitialScript() );
+		} );
+	} else {
+		applyScript( resolveInitialScript() );
 	}
 } )();

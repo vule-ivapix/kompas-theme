@@ -7,8 +7,10 @@
  * - Row 1: 2 large posts (image + title + excerpt)
  * - Row 2: 4 small posts (image + title)
  */
-$selected = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
-$per_cat  = isset( $attributes['postsPerCategory'] ) ? (int) $attributes['postsPerCategory'] : 6;
+$selected          = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
+$posts_by_category = ! empty( $attributes['postsByCategory'] ) && is_array( $attributes['postsByCategory'] ) ? $attributes['postsByCategory'] : array();
+$per_cat           = isset( $attributes['postsPerCategory'] ) ? (int) $attributes['postsPerCategory'] : 6;
+$per_cat           = max( 1, $per_cat );
 
 if ( empty( $selected ) ) {
 	// Fallback: top-level categories.
@@ -30,13 +32,40 @@ foreach ( $selected as $cat_id ) :
 		continue;
 	}
 
-	$posts = get_posts( array(
-		'category'       => $cat_id,
-		'posts_per_page' => $per_cat,
-		'post_status'    => 'publish',
-		'orderby'        => 'date',
-		'order'          => 'DESC',
-	) );
+	$manual_ids = array();
+	$cat_key    = (string) $cat_id;
+	if ( isset( $posts_by_category[ $cat_key ] ) && is_array( $posts_by_category[ $cat_key ] ) ) {
+		$manual_ids = array_values(
+			array_filter(
+				array_map( 'absint', $posts_by_category[ $cat_key ] )
+			)
+		);
+	}
+
+	$posts = array();
+	if ( ! empty( $manual_ids ) ) {
+		$posts = get_posts( array(
+			'post__in'       => $manual_ids,
+			'orderby'        => 'post__in',
+			'posts_per_page' => $per_cat,
+			'post_status'    => 'publish',
+			'category__in'   => array( $cat_id ),
+		) );
+	}
+
+	if ( count( $posts ) < $per_cat ) {
+		$posts = array_merge(
+			$posts,
+			get_posts( array(
+				'category'       => $cat_id,
+				'posts_per_page' => $per_cat - count( $posts ),
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'post__not_in'   => wp_list_pluck( $posts, 'ID' ),
+			) )
+		);
+	}
 
 	if ( empty( $posts ) ) {
 		continue;
@@ -46,13 +75,13 @@ foreach ( $selected as $cat_id ) :
 	$small = array_slice( $posts, 2, 4 );
 	$cat_link = get_category_link( $cat_id );
 ?>
-<div class="kompas-catgrid">
+	<div class="kompas-catgrid">
 
-	<div class="kompas-catgrid__header">
-		<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-catgrid__title">
-			<?php echo esc_html( mb_strtoupper( $cat->name ) ); ?>
-		</a>
-	</div>
+		<div class="kompas-catgrid__header kompas-section-topline">
+			<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-catgrid__title">
+				<?php echo esc_html( mb_strtoupper( $cat->name ) ); ?>
+			</a>
+		</div>
 
 	<!-- 2 large posts -->
 	<div class="kompas-catgrid__row-large">

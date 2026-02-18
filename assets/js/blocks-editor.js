@@ -7,7 +7,10 @@
 	var InspectorControls  = blockEditor.InspectorControls;
 	var PanelBody           = components.PanelBody;
 	var CheckboxControl     = components.CheckboxControl;
+	var RangeControl        = components.RangeControl;
 	var Spinner             = components.Spinner;
+	var MediaUpload         = blockEditor.MediaUpload;
+	var MediaUploadCheck    = blockEditor.MediaUploadCheck;
 
 	/**
 	 * TermPicker: renders checkboxes for a taxonomy in InspectorControls.
@@ -17,6 +20,7 @@
 		var setSelectedIds = props.onChange;
 		var restBase       = props.restBase; // 'categories' or 'tags'
 		var label          = props.label;
+		var maxItems       = props.max || 0; // 0 = unlimited
 
 		var terms    = useState( [] );
 		var loading  = useState( true );
@@ -52,12 +56,16 @@
 			setSelectedIds( next );
 		}
 
-		return el( PanelBody, { title: label, initialOpen: true },
+		var atMax = maxItems > 0 && selectedIds.length >= maxItems;
+
+		return el( PanelBody, { title: label + ( maxItems > 0 ? ' (' + selectedIds.length + '/' + maxItems + ')' : '' ), initialOpen: true },
 			termList.map( function( term ) {
+				var isChecked = selectedIds.indexOf( term.id ) !== -1;
 				return el( CheckboxControl, {
 					key:      term.id,
 					label:    term.name + ' (' + term.count + ')',
-					checked:  selectedIds.indexOf( term.id ) !== -1,
+					checked:  isChecked,
+					disabled: !isChecked && atMax,
 					onChange: function( checked ) { toggleTerm( term.id, checked ); },
 				} );
 			} )
@@ -85,6 +93,7 @@
 				),
 				el( 'div', blockProps,
 					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
 						block:      blockName,
 						attributes: props.attributes,
 					} )
@@ -105,33 +114,141 @@
 		save: function() { return null; },
 	} );
 
-	/* ── Footer Categories ───────────────────────────────────── */
-	blocks.registerBlockType( 'kompas/footer-categories', {
-		edit: makeEdit( 'kompas/footer-categories', 'categories', 'Kategorije u footeru' ),
-		save: function() { return null; },
-	} );
+		/* ── Footer Categories ───────────────────────────────────── */
+		blocks.registerBlockType( 'kompas/footer-categories', {
+			edit: function( props ) {
+				var blockProps  = useBlockProps();
+				var selectedIds = props.attributes.selectedIds || [];
 
-	/* ── Tabs Najnovije / Najčitanije (no picker needed) ─────── */
-	blocks.registerBlockType( 'kompas/tabs-najnovije-najcitanije', {
-		edit: function( props ) {
-			var blockProps = useBlockProps();
-			return el( 'div', blockProps,
-				el( SSR, {
-					block:      'kompas/tabs-najnovije-najcitanije',
-					attributes: props.attributes,
-				} )
-			);
-		},
-		save: function() { return null; },
-	} );
+				return el( element.Fragment, null,
+					el( InspectorControls, null,
+						el( TermPicker, {
+							selectedIds: selectedIds,
+							restBase:    'categories',
+							label:       'Kategorije u footeru',
+							max:         8,
+							onChange:     function( next ) {
+								props.setAttributes( { selectedIds: next } );
+							},
+						} )
+					),
+					el( 'div', blockProps,
+						el( SSR, {
+							key:        JSON.stringify( props.attributes ),
+							block:      'kompas/footer-categories',
+							attributes: props.attributes,
+						} )
+					)
+				);
+			},
+			save: function() { return null; },
+		} );
+
+		/* ── Footer Pages ────────────────────────────────────────── */
+		blocks.registerBlockType( 'kompas/footer-pages', {
+			edit: function( props ) {
+				var blockProps  = useBlockProps();
+				var selectedIds = props.attributes.selectedIds || [];
+
+				return el( element.Fragment, null,
+					el( InspectorControls, null,
+						el( PanelBody, { title: 'Footer stranice', initialOpen: true },
+							el( PagePicker, {
+								title: 'Footer meni',
+								selectedIds: selectedIds,
+								max: 8,
+								onChange: function( next ) {
+									props.setAttributes( { selectedIds: next } );
+								},
+							} ),
+							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+								'Izaberi stranice koje se prikazuju u donjem footer meniju.'
+							)
+						)
+					),
+					el( 'div', blockProps,
+						el( SSR, {
+							key:        JSON.stringify( props.attributes ),
+							block:      'kompas/footer-pages',
+							attributes: props.attributes,
+						} )
+					)
+				);
+			},
+			save: function() { return null; },
+		} );
+
+			/* ── Tabs Najnovije / Najčitanije ─────────────────────────── */
+			blocks.registerBlockType( 'kompas/tabs-najnovije-najcitanije', {
+			edit: function( props ) {
+				var blockProps = useBlockProps();
+				var count = props.attributes.count || 6;
+				var najnovijePostIds = props.attributes.najnovijePostIds || [];
+				var najcitanijePostIds = props.attributes.najcitanijePostIds || [];
+
+				return el( element.Fragment, null,
+					el( InspectorControls, null,
+						el( PanelBody, { title: 'Podešavanje tabova', initialOpen: true },
+							el( RangeControl, {
+								label: 'Broj postova po tabu',
+								value: count,
+								min: 1,
+								max: 12,
+								onChange: function( v ) {
+									var nextCount = parseInt( v, 10 ) || 1;
+									props.setAttributes( {
+										count: nextCount,
+										najnovijePostIds: najnovijePostIds.slice( 0, nextCount ),
+										najcitanijePostIds: najcitanijePostIds.slice( 0, nextCount ),
+									} );
+								},
+							} ),
+							el( HeroPostPicker, {
+								title: 'Najnovije (ručni izbor)',
+								selectedIds: najnovijePostIds,
+								max: count,
+								onChange: function( next ) {
+									props.setAttributes( { najnovijePostIds: next } );
+								},
+							} ),
+							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+								'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
+							),
+							el( HeroPostPicker, {
+								title: 'Najčitanije (ručni izbor)',
+								selectedIds: najcitanijePostIds,
+								max: count,
+								onChange: function( next ) {
+									props.setAttributes( { najcitanijePostIds: next } );
+								},
+							} ),
+							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+								'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
+							)
+						)
+					),
+					el( 'div', blockProps,
+						el( SSR, {
+							key:        JSON.stringify( props.attributes ),
+							block:      'kompas/tabs-najnovije-najcitanije',
+							attributes: props.attributes,
+						} )
+					)
+				);
+			},
+			save: function() { return null; },
+		} );
 
 	/* ── PostPicker: search & select posts (array of IDs) ────── */
 	var SearchControl = components.SearchControl;
 	var Button        = components.Button;
 
-	function HeroPostPicker( props ) {
-		var selectedIds = props.selectedIds || [];
-		var maxPosts    = props.max || 7;
+		function HeroPostPicker( props ) {
+			var selectedIds = Array.isArray( props.selectedIds ) ? props.selectedIds : [];
+			var maxPosts    = props.max || 7;
+			var title       = props.title || 'Izabrani postovi';
+			var categoryId  = props.categoryId ? parseInt( props.categoryId, 10 ) : 0;
+			var placeholder = props.searchPlaceholder || 'Pretraži postove...';
 
 		var _s   = useState( '' );     var search      = _s[0]; var setSearch      = _s[1];
 		var _r   = useState( [] );     var results     = _r[0]; var setResults     = _r[1];
@@ -141,25 +258,38 @@
 		// Load titles for selected IDs.
 		useEffect( function() {
 			if ( ! selectedIds.length ) { setSelPosts( [] ); return; }
-			apiFetch( { path: '/wp/v2/posts?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,title' } )
+			apiFetch( { path: '/wp/v2/posts?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,title,categories' } )
 				.then( function( posts ) {
 					var ordered = selectedIds.map( function( id ) {
 						return posts.find( function( p ) { return p.id === id; } );
 					} ).filter( Boolean );
+					if ( categoryId ) {
+						ordered = ordered.filter( function( post ) {
+							return Array.isArray( post.categories ) && post.categories.indexOf( categoryId ) !== -1;
+						} );
+					}
 					setSelPosts( ordered );
+				} )
+				.catch( function() {
+					setSelPosts( [] );
 				} );
-		}, [ selectedIds.join(',') ] );
+		}, [ selectedIds.join(','), categoryId ] );
 
 		// Search.
 		useEffect( function() {
 			if ( search.length < 2 ) { setResults( [] ); return; }
 			setLoading( true );
 			var t = setTimeout( function() {
-				apiFetch( { path: '/wp/v2/posts?search=' + encodeURIComponent( search ) + '&per_page=10&_fields=id,title' } )
-					.then( function( p ) { setResults( p ); setLoading( false ); } );
+				var path = '/wp/v2/posts?search=' + encodeURIComponent( search ) + '&per_page=10&_fields=id,title';
+				if ( categoryId ) {
+					path += '&categories=' + categoryId;
+				}
+				apiFetch( { path: path } )
+					.then( function( p ) { setResults( p ); setLoading( false ); } )
+					.catch( function() { setResults( [] ); setLoading( false ); } );
 			}, 300 );
 			return function() { clearTimeout( t ); };
-		}, [ search ] );
+		}, [ search, categoryId ] );
 
 		function addPost( post ) {
 			if ( selectedIds.length >= maxPosts ) return;
@@ -178,11 +308,11 @@
 
 		var filtered = results.filter( function( p ) { return selectedIds.indexOf( p.id ) === -1; } );
 
-		return el( 'div', null,
-			selPosts.length > 0 && el( 'div', { style: { marginBottom: '12px' } },
-				el( 'p', { style: { fontSize: '11px', textTransform: 'uppercase', fontWeight: 600, color: '#757575', marginBottom: '8px' } },
-					'Hero postovi (' + selPosts.length + '/' + maxPosts + '):'
-				),
+			return el( 'div', null,
+				selPosts.length > 0 && el( 'div', { style: { marginBottom: '12px' } },
+					el( 'p', { style: { fontSize: '11px', textTransform: 'uppercase', fontWeight: 600, color: '#757575', marginBottom: '8px' } },
+						title + ' (' + selPosts.length + '/' + maxPosts + '):'
+					),
 				selPosts.map( function( post, i ) {
 					return el( 'div', { key: post.id, style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', marginBottom: '4px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px' } },
 						el( 'span', { style: { color: '#757575', fontSize: '10px', minWidth: '18px' } }, (i+1) + '.' ),
@@ -195,80 +325,194 @@
 					);
 				} )
 			),
-			selectedIds.length < maxPosts && el( SearchControl, { value: search, onChange: setSearch, placeholder: 'Pretraži postove...' } ),
+			selectedIds.length < maxPosts && el( SearchControl, { value: search, onChange: setSearch, placeholder: placeholder } ),
 			loading && el( Spinner ),
-			!loading && filtered.length > 0 && el( 'div', { style: { border: '1px solid #ddd', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto', background: '#fff' } },
-				filtered.map( function( post ) {
-					return el( Button, { key: post.id, onClick: function() { addPost(post); }, style: { display:'block', width:'100%', textAlign:'left', padding:'8px 12px', fontSize:'13px', borderBottom:'1px solid #f0f0f0', cursor:'pointer', borderRadius:0, height:'auto' } },
-						el( 'span', { style: { color: '#757575', fontSize: '11px', marginRight: '6px' } }, '#' + post.id ),
-						post.title.rendered
-					);
-				} )
-			),
-			el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-				'Izaberite 7 postova za hero sekciju. Pozicije: 1 velika + 2 horizontalne (levo) | 4 kartice (desno).'
-			)
-		);
-	}
+				!loading && filtered.length > 0 && el( 'div', { style: { border: '1px solid #ddd', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto', background: '#fff' } },
+					filtered.map( function( post ) {
+						return el( Button, { key: post.id, onClick: function() { addPost(post); }, style: { display:'block', width:'100%', textAlign:'left', padding:'8px 12px', fontSize:'13px', borderBottom:'1px solid #f0f0f0', cursor:'pointer', borderRadius:0, height:'auto' } },
+							el( 'span', { style: { color: '#757575', fontSize: '11px', marginRight: '6px' } }, '#' + post.id ),
+							post.title.rendered
+						);
+					} )
+				)
+			);
+			}
 
-	/* ── Category Grid ──────────────────────────────────────── */
-	blocks.registerBlockType( 'kompas/category-grid', {
-		edit: function( props ) {
-			var blockProps  = useBlockProps();
-			var selectedIds = props.attributes.selectedIds || [];
+		function PagePicker( props ) {
+			var selectedIds = props.selectedIds || [];
+			var maxPages    = props.max || 8;
+			var title       = props.title || 'Izabrane stranice';
 
-			// Fetch category names for selected IDs.
-			var _cats = useState( [] );
-			var cats = _cats[0]; var setCats = _cats[1];
+			var _s   = useState( '' );     var search      = _s[0]; var setSearch      = _s[1];
+			var _r   = useState( [] );     var results     = _r[0]; var setResults     = _r[1];
+			var _l   = useState( false );  var loading     = _l[0]; var setLoading     = _l[1];
+			var _sp  = useState( [] );     var selPages    = _sp[0]; var setSelPages   = _sp[1];
 
 			useEffect( function() {
-				if ( ! selectedIds.length ) { setCats( [] ); return; }
-				apiFetch( { path: '/wp/v2/categories?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,name' } )
-					.then( function( data ) {
+				if ( ! selectedIds.length ) { setSelPages( [] ); return; }
+				apiFetch( { path: '/wp/v2/pages?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,title' } )
+					.then( function( pages ) {
 						var ordered = selectedIds.map( function( id ) {
-							return data.find( function( c ) { return c.id === id; } );
+							return pages.find( function( p ) { return p.id === id; } );
 						} ).filter( Boolean );
-						setCats( ordered );
+						setSelPages( ordered );
 					} );
 			}, [ selectedIds.join(',') ] );
 
-			return el( element.Fragment, null,
-				el( InspectorControls, null,
-					el( TermPicker, {
+			useEffect( function() {
+				if ( search.length < 2 ) { setResults( [] ); return; }
+				setLoading( true );
+				var t = setTimeout( function() {
+					apiFetch( { path: '/wp/v2/pages?search=' + encodeURIComponent( search ) + '&per_page=10&_fields=id,title' } )
+						.then( function( p ) { setResults( p ); setLoading( false ); } );
+				}, 300 );
+				return function() { clearTimeout( t ); };
+			}, [ search ] );
+
+			function addPage( page ) {
+				if ( selectedIds.length >= maxPages ) return;
+				props.onChange( selectedIds.concat( [ page.id ] ) );
+				setSearch( '' );
+				setResults( [] );
+			}
+			function removePage( id ) {
+				props.onChange( selectedIds.filter( function( x ) { return x !== id; } ) );
+			}
+			function movePage( idx, dir ) {
+				var a = selectedIds.slice();
+				var t = idx + dir;
+				if ( t < 0 || t >= a.length ) return;
+				var tmp = a[idx]; a[idx] = a[t]; a[t] = tmp;
+				props.onChange( a );
+			}
+
+			var filtered = results.filter( function( p ) { return selectedIds.indexOf( p.id ) === -1; } );
+
+			return el( 'div', null,
+				selPages.length > 0 && el( 'div', { style: { marginBottom: '12px' } },
+					el( 'p', { style: { fontSize: '11px', textTransform: 'uppercase', fontWeight: 600, color: '#757575', marginBottom: '8px' } },
+						title + ' (' + selPages.length + '/' + maxPages + '):'
+					),
+					selPages.map( function( page, i ) {
+						return el( 'div', { key: page.id, style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', marginBottom: '4px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px' } },
+							el( 'span', { style: { color: '#757575', fontSize: '10px', minWidth: '18px' } }, ( i + 1 ) + '.' ),
+							el( 'span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, page.title.rendered ),
+							el( 'div', { style: { display: 'flex', gap: '2px', flexShrink: 0 } },
+								el( Button, { icon: 'arrow-up-alt2', size: 'small', disabled: i === 0, onClick: function() { movePage( i, -1 ); }, style: { minWidth: '24px', height: '24px', padding: 0 } } ),
+								el( Button, { icon: 'arrow-down-alt2', size: 'small', disabled: i === selPages.length - 1, onClick: function() { movePage( i, 1 ); }, style: { minWidth: '24px', height: '24px', padding: 0 } } ),
+								el( Button, { icon: 'no-alt', size: 'small', isDestructive: true, onClick: function() { removePage( page.id ); }, style: { minWidth: '24px', height: '24px', padding: 0 } } )
+							)
+						);
+					} )
+				),
+				selectedIds.length < maxPages && el( SearchControl, { value: search, onChange: setSearch, placeholder: 'Pretraži stranice...' } ),
+				loading && el( Spinner ),
+				!loading && filtered.length > 0 && el( 'div', { style: { border: '1px solid #ddd', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto', background: '#fff' } },
+					filtered.map( function( page ) {
+						return el( Button, { key: page.id, onClick: function() { addPage( page ); }, style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '13px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', borderRadius: 0, height: 'auto' } },
+							el( 'span', { style: { color: '#757575', fontSize: '11px', marginRight: '6px' } }, '#' + page.id ),
+							page.title.rendered
+						);
+					} )
+				)
+			);
+		}
+
+			/* ── Category Grid ──────────────────────────────────────── */
+			blocks.registerBlockType( 'kompas/category-grid', {
+			edit: function( props ) {
+				var blockProps  = useBlockProps();
+				var selectedIds = Array.isArray( props.attributes.selectedIds ) ? props.attributes.selectedIds : [];
+				var postsByCategory = props.attributes.postsByCategory && typeof props.attributes.postsByCategory === 'object' ? props.attributes.postsByCategory : {};
+				var perCategory = Math.max( 1, parseInt( props.attributes.postsPerCategory, 10 ) || 6 );
+				var _catNames = useState( {} );
+				var categoryNames = _catNames[0];
+				var setCategoryNames = _catNames[1];
+
+				function getPostsForCategory( catId ) {
+					var key = String( catId );
+					return Array.isArray( postsByCategory[ key ] ) ? postsByCategory[ key ] : [];
+				}
+
+				useEffect( function() {
+					if ( ! selectedIds.length ) {
+						setCategoryNames( {} );
+						return;
+					}
+					apiFetch( { path: '/wp/v2/categories?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,name' } )
+						.then( function( categories ) {
+							var map = {};
+							categories.forEach( function( cat ) {
+								map[ cat.id ] = cat.name;
+							} );
+							setCategoryNames( map );
+						} )
+						.catch( function() {
+							setCategoryNames( {} );
+						} );
+				}, [ selectedIds.join(',') ] );
+
+				return el( element.Fragment, null,
+					el( InspectorControls, null,
+						el( TermPicker, {
 						selectedIds: selectedIds,
 						restBase:    'categories',
 						label:       'Kategorije za grid',
 						onChange:     function( next ) {
-							props.setAttributes( { selectedIds: next } );
-						},
-					} )
-				),
-				el( 'div', blockProps,
-					selectedIds.length === 0
-						? el( 'div', { style: { padding: '2rem', background: '#f9f9f9', border: '1px dashed #ccc', textAlign: 'center', color: '#777' } },
-							el( 'p', { style: { fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 0.5rem' } }, 'Category Grid'),
-							el( 'p', { style: { fontSize: '0.8125rem', margin: 0 } }, 'Izaberite kategorije u sidebar-u. Za svaku se prikazuje: 2 velike + 4 male vesti.')
-						)
-						: cats.map( function( cat ) {
-							return el( 'div', { key: cat.id, style: { marginBottom: '2rem' } },
-								el( 'div', { style: { borderBottom: '3px solid #c0392b', paddingBottom: '0.5rem', marginBottom: '1rem' } },
-									el( 'span', { style: { fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em' } }, cat.name )
-								),
-								el( 'div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' } },
-									el( 'div', { style: { background: '#eee', height: '140px', display: 'flex', alignItems: 'flex-end', padding: '0.75rem', fontSize: '0.8125rem', fontWeight: 600, color: '#555' } }, 'Велика вест 1' ),
-									el( 'div', { style: { background: '#eee', height: '140px', display: 'flex', alignItems: 'flex-end', padding: '0.75rem', fontSize: '0.8125rem', fontWeight: 600, color: '#555' } }, 'Велика вест 2' )
-								),
-								el( 'div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem' } },
-									el( 'div', { style: { background: '#f0f0f0', height: '80px', display: 'flex', alignItems: 'flex-end', padding: '0.5rem', fontSize: '0.6875rem', color: '#777' } }, 'Мала вест' ),
-									el( 'div', { style: { background: '#f0f0f0', height: '80px', display: 'flex', alignItems: 'flex-end', padding: '0.5rem', fontSize: '0.6875rem', color: '#777' } }, 'Мала вест' ),
-									el( 'div', { style: { background: '#f0f0f0', height: '80px', display: 'flex', alignItems: 'flex-end', padding: '0.5rem', fontSize: '0.6875rem', color: '#777' } }, 'Мала вест' ),
-									el( 'div', { style: { background: '#f0f0f0', height: '80px', display: 'flex', alignItems: 'flex-end', padding: '0.5rem', fontSize: '0.6875rem', color: '#777' } }, 'Мала вест' )
+							var nextMap = {};
+							next.forEach( function( catId ) {
+								var key = String( catId );
+								if ( Array.isArray( postsByCategory[ key ] ) ) {
+									nextMap[ key ] = postsByCategory[ key ];
+								}
+							} );
+							props.setAttributes( {
+								selectedIds: next,
+								postsByCategory: nextMap,
+							} );
+							},
+						} ),
+						selectedIds.map( function( catId ) {
+							var catPosts = getPostsForCategory( catId );
+							var title = categoryNames[ catId ] ? categoryNames[ catId ] : ( 'Kategorija #' + catId );
+
+							return el( PanelBody, {
+								key: 'cat-posts-' + catId,
+								title: 'Postovi: ' + title,
+								initialOpen: true,
+							},
+								el( HeroPostPicker, {
+									title: 'Ručno izabrani postovi',
+									selectedIds: catPosts,
+									max: perCategory,
+									categoryId: catId,
+									searchPlaceholder: 'Pretraži postove u kategoriji...',
+									onChange: function( nextPosts ) {
+										var nextMap = Object.assign( {}, postsByCategory );
+										var key = String( catId );
+										if ( nextPosts.length ) {
+											nextMap[ key ] = nextPosts;
+										} else {
+											delete nextMap[ key ];
+										}
+										props.setAttributes( { postsByCategory: nextMap } );
+									},
+								} ),
+								el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+									'Ako ne izabereš postove, prikazuju se najnoviji iz ove kategorije.'
 								)
 							);
 						} )
-				)
-			);
-		},
+					),
+					el( 'div', blockProps,
+						el( SSR, {
+							key:        JSON.stringify( props.attributes ),
+							block:      'kompas/category-grid',
+							attributes: props.attributes,
+						} )
+					)
+				);
+			},
 		save: function() { return null; },
 	} );
 
@@ -295,34 +539,16 @@
 	/* ── Banner Placeholder ────────────────────────────────── */
 	var SelectControl = components.SelectControl;
 
-	blocks.registerBlockType( 'kompas/banner', {
-		edit: function( props ) {
-			var blockProps = useBlockProps();
-			var variant    = props.attributes.variant || 'horizontal';
-			var isSquare   = variant === 'square';
+		blocks.registerBlockType( 'kompas/banner', {
+			edit: function( props ) {
+				var blockProps = useBlockProps();
+				var variant    = props.attributes.variant || 'horizontal';
+				var imageUrl   = props.attributes.imageUrl || '';
+				var imageId    = props.attributes.imageId || 0;
 
-			var style = {
-				border: '1px solid #dddddd',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				background: '#f9f9f9',
-				fontSize: '0.875rem',
-				fontWeight: 700,
-				textTransform: 'uppercase',
-				letterSpacing: '0.1em',
-				color: '#999',
-			};
-
-			if ( isSquare ) {
-				style.minHeight = '300px';
-			} else {
-				style.padding = '2.5rem 2rem';
-			}
-
-			return el( element.Fragment, null,
-				el( InspectorControls, null,
-					el( PanelBody, { title: 'Banner podešavanja', initialOpen: true },
+				return el( element.Fragment, null,
+					el( InspectorControls, null,
+						el( PanelBody, { title: 'Banner podešavanja', initialOpen: true },
 						el( SelectControl, {
 							label: 'Varijanta',
 							value: variant,
@@ -330,17 +556,51 @@
 								{ label: 'Horizontalni', value: 'horizontal' },
 								{ label: 'Kvadratni',    value: 'square' },
 							],
-							onChange: function( v ) {
-								props.setAttributes( { variant: v } );
-							},
+								onChange: function( v ) {
+									props.setAttributes( { variant: v } );
+								},
+							} ),
+							el( MediaUploadCheck, null,
+								el( MediaUpload, {
+									onSelect: function( media ) {
+										props.setAttributes( {
+											imageId: media && media.id ? media.id : 0,
+											imageUrl: media && media.url ? media.url : '',
+											imageAlt: media && media.alt ? media.alt : '',
+										} );
+									},
+									allowedTypes: [ 'image' ],
+									value: imageId,
+									render: function( obj ) {
+										return el( Button, {
+											variant: imageUrl ? 'secondary' : 'primary',
+											onClick: obj.open,
+										}, imageUrl ? 'Promeni sliku' : 'Odaberi sliku' );
+									},
+								} )
+							),
+							imageUrl && el( Button, {
+								isDestructive: true,
+								onClick: function() {
+									props.setAttributes( {
+										imageId: 0,
+										imageUrl: '',
+										imageAlt: '',
+									} );
+								},
+								style: { marginTop: '8px' },
+							}, 'Ukloni sliku' )
+						)
+					),
+					el( 'div', blockProps,
+						el( SSR, {
+							key:        JSON.stringify( props.attributes ),
+							block:      'kompas/banner',
+							attributes: props.attributes,
 						} )
 					)
-				),
-				el( 'div', blockProps,
-					el( 'div', { style: style }, 'БАНЕР' )
-				)
-			);
-		},
+				);
+			},
 		save: function() { return null; },
 	} );
 
@@ -367,6 +627,7 @@
 				),
 				el( 'div', blockProps,
 					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
 						block:      'kompas/kolumne',
 						attributes: props.attributes,
 					} )
@@ -419,7 +680,41 @@
 				),
 				el( 'div', blockProps,
 					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
 						block:      'kompas/rec-urednika',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	/* ── Homepage Hero ──────────────────────────────────────── */
+	blocks.registerBlockType( 'kompas/homepage-hero', {
+		edit: function( props ) {
+			var blockProps   = useBlockProps();
+			var heroPostIds  = props.attributes.heroPostIds || [];
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Hero postovi (6)', initialOpen: true },
+						el( HeroPostPicker, {
+							selectedIds: heroPostIds,
+							max: 6,
+							onChange: function( next ) {
+								props.setAttributes( { heroPostIds: next } );
+							}
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+							'1 velika vest (centar) | 3 sidebar (levo) | 2 horizontalne (centar dole)'
+						)
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/homepage-hero',
 						attributes: props.attributes,
 					} )
 				)

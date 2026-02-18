@@ -1,0 +1,44 @@
+/* Editor styles for kompas/homepage-hero */
+.wp-block-kompas-homepage-hero .kompas-homepage-hero {
+	display: flex;
+	gap: var(--wp--preset--spacing--50);
+	align-items: flex-start;
+}
+
+.wp-block-kompas-homepage-hero .kompas-homepage-hero__sidebar {
+	flex: 0 0 33.333%;
+	max-width: 33.333%;
+}
+
+.wp-block-kompas-homepage-hero .kompas-homepage-hero__center {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+@media (max-width: 781px) {
+	.wp-block-kompas-homepage-hero .kompas-homepage-hero {
+		flex-direction: column;
+	}
+
+	.wp-block-kompas-homepage-hero .kompas-homepage-hero__sidebar {
+		flex-basis: 100%;
+		max-width: 100%;
+		order: 2;
+	}
+
+	.wp-block-kompas-homepage-hero .kompas-homepage-hero__center {
+		order: 1;
+	}
+
+	.wp-block-kompas-homepage-hero .kompas-homepage-hero__sub-item {
+		flex-direction: row !important;
+		flex-wrap: nowrap !important;
+		align-items: flex-start !important;
+	}
+
+	.wp-block-kompas-homepage-hero .kompas-homepage-hero__sub-item > a:first-child {
+		flex: 0 0 38% !important;
+		max-width: 38% !important;
+		margin-bottom: 0 !important;
+	}
+}

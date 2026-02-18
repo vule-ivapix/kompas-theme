@@ -13,9 +13,22 @@
 		"variant": {
 			"type": "string",
 			"default": "horizontal"
+		},
+		"imageId": {
+			"type": "number",
+			"default": 0
+		},
+		"imageUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"imageAlt": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"textdomain": "kompas",
 	"editorScript": "kompas-blocks-editor",
+	"editorStyle": "file:./editor.css",
 	"render": "file:../../render/banner.php"
 }

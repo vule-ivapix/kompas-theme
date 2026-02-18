@@ -1,19 +1,62 @@
 /* Editor styles for kompas/rec-urednika */
-.wp-block-kompas-rec-urednika {
-	max-width: 300px;
+.wp-block-kompas-rec-urednika .kompas-section-topline {
+	position: relative;
+	border-top: 1px solid var(--wp--preset--color--border);
+	padding-top: var(--wp--preset--spacing--40);
 }
 
-.wp-block-kompas-rec-urednika .kompas-rec-urednika__image {
-	width: 100%;
-	height: auto;
-	max-height: 200px;
-	object-fit: cover;
+.wp-block-kompas-rec-urednika .kompas-section-topline::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: min(280px, 100%);
+	border-top: 8px solid var(--wp--preset--color--primary);
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika {
+	padding: 0 0 var(--wp--preset--spacing--50) 0;
+	margin-top: 0;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__heading {
+	margin-bottom: var(--wp--preset--spacing--50);
 }
 
 .wp-block-kompas-rec-urednika .kompas-rec-urednika__title {
-	font-size: 0.875rem;
+	font-size: 1rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--wp--preset--color--dark);
+	margin: 0;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__image-link {
+	display: block;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__image {
+	display: block;
+	width: 100%;
+	height: auto;
 }
 
 .wp-block-kompas-rec-urednika .kompas-rec-urednika__more {
-	font-size: 0.6875rem;
+	display: inline-block;
+	margin-top: var(--wp--preset--spacing--40);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	border-bottom: 2px solid var(--wp--preset--color--dark);
+	padding-bottom: 2px;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.wp-block-kompas-rec-urednika .kompas-rec-urednika__more:hover {
+	color: var(--wp--preset--color--primary);
+	border-color: var(--wp--preset--color--primary);
 }

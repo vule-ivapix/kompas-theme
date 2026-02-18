@@ -18,7 +18,7 @@
 </div>
 <!-- /wp:group -->
 
-<!-- wp:query {"queryId":50,"query":{"perPage":4,"pages":1,"offset":0,"postType":"post","order":"desc","orderBy":"date"}} -->
+<!-- wp:query {"queryId":50,"query":{"perPage":4,"pages":1,"offset":0,"postType":"post","order":"desc","orderBy":"date"},"className":"kompas-related-posts-query"} -->
 <!-- wp:post-template {"layout":{"type":"grid","columnCount":4}} -->
 <!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/10","style":{"spacing":{"margin":{"bottom":"var:preset|spacing|20"}}}} /-->
 <!-- wp:post-title {"isLink":true,"style":{"typography":{"fontSize":"0.875rem","fontWeight":"700","lineHeight":"1.3"}},"textColor":"dark"} /-->

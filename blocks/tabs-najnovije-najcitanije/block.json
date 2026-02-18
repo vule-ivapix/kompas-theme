@@ -13,9 +13,18 @@
 		"count": {
 			"type": "number",
 			"default": 6
+		},
+		"najnovijePostIds": {
+			"type": "array",
+			"default": []
+		},
+		"najcitanijePostIds": {
+			"type": "array",
+			"default": []
 		}
 	},
 	"textdomain": "kompas",
 	"editorScript": "kompas-blocks-editor",
+	"editorStyle": "file:./editor.css",
 	"render": "file:../../render/tabs-najnovije-najcitanije.php"
 }

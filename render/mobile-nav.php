@@ -91,6 +91,10 @@ $popular_tags = get_tags( array(
 						'orderby'    => 'name',
 						'order'      => 'ASC',
 					) );
+					$cat_tags = array();
+					if ( function_exists( 'kompas_get_tags_for_category' ) ) {
+						$cat_tags = kompas_get_tags_for_category( $cat->term_id, 8 );
+					}
 				?>
 				<div class="kompas-mobile-cats__group">
 					<a href="<?php echo esc_url( get_category_link( $cat->term_id ) ); ?>" class="kompas-mobile-cats__parent">
@@ -101,6 +105,15 @@ $popular_tags = get_tags( array(
 						<?php foreach ( $children as $child ) : ?>
 						<a href="<?php echo esc_url( get_category_link( $child->term_id ) ); ?>" class="kompas-mobile-cats__child">
 							<?php echo esc_html( mb_strtoupper( $child->name ) ); ?>
+						</a>
+						<?php endforeach; ?>
+					</div>
+					<?php endif; ?>
+					<?php if ( ! empty( $cat_tags ) ) : ?>
+					<div class="kompas-mobile-cats__tags" aria-label="Тагови">
+						<?php foreach ( $cat_tags as $tag ) : ?>
+						<a href="<?php echo esc_url( get_tag_link( $tag->term_id ) ); ?>" class="kompas-mobile-cats__tag">
+							<?php echo esc_html( mb_strtoupper( $tag->name ) ); ?>
 						</a>
 						<?php endforeach; ?>
 					</div>

@@ -10,6 +10,7 @@
 
 		btn.setAttribute( 'aria-expanded', open ? 'false' : 'true' );
 		btn.classList.toggle( 'is-open', ! open );
+		nav.classList.toggle( 'is-open', ! open );
 		overlay.classList.toggle( 'is-open', ! open );
 		overlay.setAttribute( 'aria-hidden', open ? 'true' : 'false' );
 		document.body.classList.toggle( 'kompas-mobile-menu-open', ! open );

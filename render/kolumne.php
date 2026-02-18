@@ -37,7 +37,9 @@ if ( empty( $posts ) ) {
 $cat_link = $kolumne_term ? get_category_link( $kolumne_term->term_id ) : '';
 ?>
 <div class="kompas-kolumne">
-	<h3 class="kompas-kolumne__title">КОЛУМНЕ</h3>
+	<div class="kompas-kolumne__heading kompas-section-topline">
+		<h3 class="kompas-kolumne__title">КОЛУМНЕ</h3>
+	</div>
 
 	<div class="kompas-kolumne__list">
 		<?php foreach ( $posts as $p ) :
@@ -46,7 +48,7 @@ $cat_link = $kolumne_term ? get_category_link( $kolumne_term->term_id ) : '';
 			$avatar_url  = get_avatar_url( $author_id, array( 'size' => 120 ) );
 			$excerpt     = wp_trim_words( get_the_excerpt( $p ), 12 );
 		?>
-		<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" class="kompas-kolumne__item">
+		<a href="<?php echo esc_url( get_author_posts_url( $author_id ) ); ?>" class="kompas-kolumne__item">
 			<img src="<?php echo esc_url( $avatar_url ); ?>"
 				 alt="<?php echo esc_attr( $author_name ); ?>"
 				 class="kompas-kolumne__avatar" />

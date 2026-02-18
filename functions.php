@@ -9,23 +9,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'KOMPAS_VERSION', '1.0.0' );
+define( 'KOMPAS_VERSION', '1.0.1' );
+define( 'KOMPAS_CUSTOM_AUTHOR_META_KEY', 'kompas_custom_author' );
 
 /**
  * Enqueue theme styles.
  */
 function kompas_enqueue_styles() {
+	$style_path = get_theme_file_path( 'style.css' );
+	$style_ver  = KOMPAS_VERSION;
+	if ( file_exists( $style_path ) ) {
+		$style_ver .= '.' . (string) filemtime( $style_path );
+	}
+
+	$toggle_script_path = get_theme_file_path( 'assets/js/script-toggle.js' );
+	$toggle_script_ver  = KOMPAS_VERSION;
+	if ( file_exists( $toggle_script_path ) ) {
+		$toggle_script_ver .= '.' . (string) filemtime( $toggle_script_path );
+	}
+
 	wp_enqueue_style(
 		'kompas-style',
 		get_stylesheet_uri(),
 		array(),
-		KOMPAS_VERSION
+		$style_ver
 	);
 	wp_enqueue_script(
 		'kompas-script-toggle',
 		get_theme_file_uri( 'assets/js/script-toggle.js' ),
 		array(),
-		KOMPAS_VERSION,
+		$toggle_script_ver,
 		true
 	);
 }
@@ -54,7 +67,7 @@ function kompas_register_curated_query() {
 	wp_enqueue_script(
 		'kompas-curated-query',
 		get_theme_file_uri( 'assets/js/curated-query.js' ),
-		array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-hooks' ),
+		array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-hooks', 'wp-compose', 'wp-api-fetch' ),
 		KOMPAS_VERSION,
 		true
 	);
@@ -92,6 +105,36 @@ function kompas_pre_render_curated_query( $pre_render, $parsed_block, $parent_bl
 	return $pre_render;
 }
 add_filter( 'pre_render_block', 'kompas_pre_render_curated_query', 10, 3 );
+
+/**
+ * Exclude current single post from the "related posts" query block.
+ */
+function kompas_exclude_current_from_related_posts_query( $query, $block, $page ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $query;
+	}
+
+	$class_name = $block->parsed_block['attrs']['className'] ?? '';
+	if ( false === strpos( $class_name, 'kompas-related-posts-query' ) ) {
+		return $query;
+	}
+
+	$current_post_id = (int) get_queried_object_id();
+	if ( $current_post_id <= 0 ) {
+		return $query;
+	}
+
+	$query['post__not_in'] = isset( $query['post__not_in'] ) && is_array( $query['post__not_in'] )
+		? $query['post__not_in']
+		: array();
+
+	if ( ! in_array( $current_post_id, $query['post__not_in'], true ) ) {
+		$query['post__not_in'][] = $current_post_id;
+	}
+
+	return $query;
+}
+add_filter( 'query_loop_block_query_vars', 'kompas_exclude_current_from_related_posts_query', 10, 3 );
 
 /**
  * Add theme support.
@@ -220,8 +263,136 @@ function kompas_register_meta() {
 		'default'       => 0,
 		'auth_callback' => '__return_true',
 	) );
+
+	register_post_meta( 'post', KOMPAS_CUSTOM_AUTHOR_META_KEY, array(
+		'show_in_rest'      => true,
+		'single'            => true,
+		'type'              => 'string',
+		'default'           => '',
+		'sanitize_callback' => 'sanitize_text_field',
+		'auth_callback'     => function () {
+			return current_user_can( 'edit_posts' );
+		},
+	) );
 }
 add_action( 'init', 'kompas_register_meta' );
+
+/**
+ * Add a custom author name field to post edit screens.
+ */
+function kompas_add_custom_author_meta_box() {
+	add_meta_box(
+		'kompas-custom-author',
+		'Аутор (ручни унос)',
+		'kompas_render_custom_author_meta_box',
+		'post',
+		'side',
+		'default'
+	);
+}
+add_action( 'add_meta_boxes_post', 'kompas_add_custom_author_meta_box' );
+
+/**
+ * Render custom author name field for posts.
+ */
+function kompas_render_custom_author_meta_box( $post ) {
+	$custom_author = get_post_meta( $post->ID, KOMPAS_CUSTOM_AUTHOR_META_KEY, true );
+	wp_nonce_field( 'kompas_save_custom_author', 'kompas_custom_author_nonce' );
+	?>
+	<p>
+		<label for="kompas-custom-author-input">Име аутора (опционо)</label>
+		<input
+			type="text"
+			id="kompas-custom-author-input"
+			name="kompas_custom_author"
+			value="<?php echo esc_attr( $custom_author ); ?>"
+			class="widefat"
+		/>
+	</p>
+	<p class="description">
+		Ако је попуњено, ово име ће се приказивати уместо WordPress аутора.
+	</p>
+	<?php
+}
+
+/**
+ * Save custom author name for posts.
+ */
+function kompas_save_custom_author_meta( $post_id ) {
+	if ( ! isset( $_POST['kompas_custom_author_nonce'] ) || ! wp_verify_nonce( $_POST['kompas_custom_author_nonce'], 'kompas_save_custom_author' ) ) {
+		return;
+	}
+
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	if ( ! isset( $_POST['kompas_custom_author'] ) ) {
+		return;
+	}
+
+	$custom_author = sanitize_text_field( wp_unslash( $_POST['kompas_custom_author'] ) );
+	if ( '' === $custom_author ) {
+		delete_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY );
+		return;
+	}
+
+	update_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY, $custom_author );
+}
+add_action( 'save_post_post', 'kompas_save_custom_author_meta' );
+
+/**
+ * Replace post author name block output with manually entered author name.
+ */
+function kompas_replace_post_author_name_block( $block_content, $block, $instance ) {
+	$post_id = 0;
+
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$custom_author = trim( (string) get_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY, true ) );
+	if ( '' === $custom_author ) {
+		return $block_content;
+	}
+
+	$custom_author = esc_html( $custom_author );
+
+	if ( false !== stripos( $block_content, '<a ' ) ) {
+		$updated = preg_replace_callback(
+			'/(<a\b[^>]*>).*?(<\/a>)/is',
+			static function ( $matches ) use ( $custom_author ) {
+				return $matches[1] . $custom_author . $matches[2];
+			},
+			$block_content,
+			1
+		);
+
+		return $updated ?: $block_content;
+	}
+
+	$updated = preg_replace_callback(
+		'/(<div\b[^>]*>).*?(<\/div>)/is',
+		static function ( $matches ) use ( $custom_author ) {
+			return $matches[1] . $custom_author . $matches[2];
+		},
+		$block_content,
+		1
+	);
+
+	return $updated ?: $block_content;
+}
+add_filter( 'render_block_core/post-author-name', 'kompas_replace_post_author_name_block', 10, 3 );
 
 /**
  * Track post views.
@@ -252,39 +423,71 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_tabs_script' );
 /**
  * Render the Najnovije/Najčitanije tabs section.
  *
- * This is a dynamic block that outputs two tab panels:
- * - Najnovije: latest posts by date
- * - Najčitanije: most viewed posts by kompas_views meta
- *
- * Each panel uses the 2+4 grid layout (2 large + 4 small).
+ * Both tabs support manual post selection.
+ * Fallback behavior: if no manual selection is provided (or list is shorter than count),
+ * remaining slots are filled with latest posts by date.
  */
 function kompas_render_tabs_block( $attributes ) {
-	$count = isset( $attributes['count'] ) ? (int) $attributes['count'] : 4;
+	$count = isset( $attributes['count'] ) ? max( 1, (int) $attributes['count'] ) : 6;
 
-	// Query: Najnovije (by date).
-	$najnovije = get_posts( array(
-		'posts_per_page' => $count,
-		'post_status'    => 'publish',
-		'orderby'        => 'date',
-		'order'          => 'DESC',
-	) );
+	$najnovije_ids  = ! empty( $attributes['najnovijePostIds'] ) ? array_map( 'absint', $attributes['najnovijePostIds'] ) : array();
+	$najcitanije_ids = ! empty( $attributes['najcitanijePostIds'] ) ? array_map( 'absint', $attributes['najcitanijePostIds'] ) : array();
 
-	// Query: Najčitanije (by views).
-	$najcitanije = get_posts( array(
-		'posts_per_page' => $count,
-		'post_status'    => 'publish',
-		'meta_key'       => 'kompas_views',
-		'orderby'        => 'meta_value_num',
-		'order'          => 'DESC',
-	) );
+	$najnovije = array();
+	if ( ! empty( $najnovije_ids ) ) {
+		$najnovije = get_posts( array(
+			'post__in'       => $najnovije_ids,
+			'orderby'        => 'post__in',
+			'posts_per_page' => $count,
+			'post_status'    => 'publish',
+		) );
+	}
+	if ( count( $najnovije ) < $count ) {
+		$exclude   = wp_list_pluck( $najnovije, 'ID' );
+		$najnovije = array_merge(
+			$najnovije,
+			get_posts( array(
+				'posts_per_page' => $count - count( $najnovije ),
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'post__not_in'   => $exclude,
+			) )
+		);
+	}
+
+	$najcitanije = array();
+	if ( ! empty( $najcitanije_ids ) ) {
+		$najcitanije = get_posts( array(
+			'post__in'       => $najcitanije_ids,
+			'orderby'        => 'post__in',
+			'posts_per_page' => $count,
+			'post_status'    => 'publish',
+		) );
+	}
+	if ( count( $najcitanije ) < $count ) {
+		$exclude     = wp_list_pluck( $najcitanije, 'ID' );
+		$najcitanije = array_merge(
+			$najcitanije,
+			get_posts( array(
+				'posts_per_page' => $count - count( $najcitanije ),
+				'post_status'    => 'publish',
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'post__not_in'   => $exclude,
+			) )
+		);
+	}
 
 	ob_start();
 	?>
 	<div class="kompas-tabs-section" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60)">
 
-		<div class="kompas-tabs-nav" style="display:flex;gap:0;margin-bottom:var(--wp--preset--spacing--50);border-bottom:1px solid var(--wp--preset--color--border)">
-			<button class="kompas-tab-btn is-active" data-tab="najnovije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark);cursor:pointer;font-family:inherit">НАЈНОВИЈЕ</button>
-			<button class="kompas-tab-btn" data-tab="najcitanije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid transparent;color:var(--wp--preset--color--muted);cursor:pointer;font-family:inherit">НАЈЧИТАНИЈЕ</button>
+		<div class="kompas-tabs-heading kompas-section-topline" style="margin-bottom:var(--wp--preset--spacing--50)">
+			<div class="kompas-tabs-nav" style="display:flex;gap:0;border-bottom:1px solid var(--wp--preset--color--border)">
+				<button class="kompas-tab-btn is-active" data-tab="najnovije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark);cursor:pointer;font-family:inherit">НАЈНОВИЈЕ</button>
+				<button class="kompas-tab-btn" data-tab="najcitanije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid transparent;color:var(--wp--preset--color--muted);cursor:pointer;font-family:inherit">НАЈЧИТАНИЈЕ</button>
+			</div>
 		</div>
 
 		<div class="kompas-tab-panel is-active" data-panel="najnovije">
@@ -403,13 +606,13 @@ function kompas_render_footer_categories( $attributes = array() ) {
 		return '';
 	}
 
-	$output = '<div class="kompas-footer-categories" style="margin-bottom:var(--wp--preset--spacing--60)">';
+	$output = '<div class="kompas-footer-categories">';
 
 	foreach ( $categories as $cat ) {
 		$output .= '<div class="kompas-footer-cat-col">';
 		$output .= '<h4 class="has-dark-color has-text-color" style="font-size:0.875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;margin-bottom:0.75rem">';
 		$output .= '<a href="' . esc_url( get_category_link( $cat->term_id ) ) . '" style="color:inherit;text-decoration:none">';
-		$output .= esc_html( strtoupper( $cat->name ) );
+			$output .= esc_html( mb_strtoupper( $cat->name ) );
 		$output .= '</a></h4>';
 
 		$tags = kompas_get_tags_for_category( $cat->term_id, 6 );
@@ -418,7 +621,7 @@ function kompas_render_footer_categories( $attributes = array() ) {
 			foreach ( $tags as $tag ) {
 				$output .= '<p class="has-muted-color has-text-color" style="font-size:0.8125rem;margin-top:0;margin-bottom:0.4rem">';
 				$output .= '<a href="' . esc_url( get_tag_link( $tag->term_id ) ) . '" style="color:inherit;text-decoration:none">';
-				$output .= esc_html( strtoupper( $tag->name ) );
+					$output .= esc_html( mb_strtoupper( $tag->name ) );
 				$output .= '</a></p>';
 			}
 		}
@@ -432,10 +635,11 @@ function kompas_render_footer_categories( $attributes = array() ) {
 }
 
 /**
- * Register the dynamic footer categories block via block.json.
+ * Register footer dynamic blocks via block.json.
  */
 function kompas_register_footer_categories_block() {
 	register_block_type( get_theme_file_path( 'blocks/footer-categories' ) );
+	register_block_type( get_theme_file_path( 'blocks/footer-pages' ) );
 }
 add_action( 'init', 'kompas_register_footer_categories_block' );
 
@@ -458,8 +662,19 @@ function kompas_render_archive_layout( $attributes = array() ) {
 	$paged    = max( 1, get_query_var( 'paged', 1 ) );
 	$per_page = isset( $attributes['postsPerPage'] ) ? (int) $attributes['postsPerPage'] : 17;
 
-	// Hero posts: manually selected or fallback to latest 7 from archive.
-	$hero_ids = ! empty( $attributes['heroPostIds'] ) ? array_map( 'absint', $attributes['heroPostIds'] ) : array();
+	// Hero posts: per-category term meta → block attribute → fallback to latest 7.
+	$hero_ids = array();
+
+	if ( is_category() ) {
+		$cat_hero = get_term_meta( get_queried_object_id(), 'kompas_hero_posts', true );
+		if ( is_array( $cat_hero ) && ! empty( $cat_hero ) ) {
+			$hero_ids = array_map( 'absint', $cat_hero );
+		}
+	}
+
+	if ( empty( $hero_ids ) && ! empty( $attributes['heroPostIds'] ) ) {
+		$hero_ids = array_map( 'absint', $attributes['heroPostIds'] );
+	}
 
 	if ( ! empty( $hero_ids ) ) {
 		// Manually selected — fetch by IDs preserving order.
@@ -634,7 +849,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		$total_pages = $query->max_num_pages;
 		if ( $total_pages > 1 ) :
 		?>
-		<nav class="kompas-archive-pagination" aria-label="Paginacija">
+		<nav class="kompas-archive-pagination" aria-label="Пагинација">
 			<?php
 			echo paginate_links( array(
 				'total'     => $total_pages,
@@ -693,7 +908,7 @@ function kompas_render_header_nav( $attributes = array() ) {
 			. esc_html( mb_strtoupper( $cat->name ) ) . '</a>';
 	}
 
-	return '<nav class="kompas-header-categories" aria-label="Glavna navigacija">'
+	return '<nav class="kompas-header-categories" aria-label="Главна навигација">'
 		. implode( '', $links )
 		. '</nav>';
 }
@@ -732,7 +947,7 @@ function kompas_render_header_tags( $attributes = array() ) {
 			. esc_html( mb_strtoupper( $tag->name ) ) . '</a>';
 	}
 
-	return '<nav class="kompas-header-tags" aria-label="Sekundarna navigacija">'
+	return '<nav class="kompas-header-tags" aria-label="Секундарна навигација">'
 		. implode( '', $links )
 		. '</nav>';
 }
@@ -751,11 +966,17 @@ add_action( 'init', 'kompas_register_header_blocks' );
  * Priority 5 — runs before block registration at default priority 10.
  */
 function kompas_register_blocks_editor_script() {
+	$editor_script_path = get_theme_file_path( 'assets/js/blocks-editor.js' );
+	$editor_script_ver  = KOMPAS_VERSION;
+	if ( file_exists( $editor_script_path ) ) {
+		$editor_script_ver .= '.' . (string) filemtime( $editor_script_path );
+	}
+
 	wp_register_script(
 		'kompas-blocks-editor',
 		get_theme_file_uri( 'assets/js/blocks-editor.js' ),
 		array( 'wp-blocks', 'wp-element', 'wp-server-side-render', 'wp-block-editor', 'wp-components', 'wp-api-fetch' ),
-		KOMPAS_VERSION,
+		$editor_script_ver,
 		true
 	);
 }
@@ -774,6 +995,14 @@ function kompas_register_kolumne_rec_blocks() {
 	register_block_type( get_theme_file_path( 'blocks/rec-urednika' ) );
 }
 add_action( 'init', 'kompas_register_kolumne_rec_blocks' );
+
+/**
+ * Register Homepage Hero block.
+ */
+function kompas_register_homepage_hero_block() {
+	register_block_type( get_theme_file_path( 'blocks/homepage-hero' ) );
+}
+add_action( 'init', 'kompas_register_homepage_hero_block' );
 
 /**
  * Register Banner block.
@@ -846,3 +1075,167 @@ function kompas_exclude_hidden_categories( $clauses, $taxonomies, $args ) {
 	return $clauses;
 }
 add_filter( 'terms_clauses', 'kompas_exclude_hidden_categories', 10, 3 );
+
+/**
+ * ── Custom Author Photo ──────────────────────────────────────
+ */
+
+/**
+ * Render author photo upload field on user profile page.
+ */
+function kompas_author_photo_field( $user ) {
+	$photo_id  = get_user_meta( $user->ID, 'kompas_author_photo', true );
+	$photo_url = $photo_id ? wp_get_attachment_image_url( $photo_id, 'thumbnail' ) : '';
+	?>
+	<h3>Фотографија аутора</h3>
+	<table class="form-table">
+		<tr>
+			<th><label for="kompas-author-photo-id">Фотографија</label></th>
+			<td>
+				<img id="kompas-author-photo-preview"
+					 src="<?php echo esc_url( $photo_url ); ?>"
+					 style="max-width:150px;height:auto;display:<?php echo $photo_url ? 'block' : 'none'; ?>;margin-bottom:8px;border-radius:50%" />
+				<input type="hidden" id="kompas-author-photo-id" name="kompas_author_photo" value="<?php echo esc_attr( $photo_id ); ?>" />
+				<button type="button" class="button" id="kompas-author-photo-select">Изабери фотографију</button>
+				<button type="button" class="button" id="kompas-author-photo-remove" style="display:<?php echo $photo_url ? 'inline-block' : 'none'; ?>">Уклони</button>
+			</td>
+		</tr>
+	</table>
+	<?php
+}
+add_action( 'show_user_profile', 'kompas_author_photo_field' );
+add_action( 'edit_user_profile', 'kompas_author_photo_field' );
+
+/**
+ * Save author photo attachment ID to user meta.
+ */
+function kompas_save_author_photo( $user_id ) {
+	if ( ! current_user_can( 'edit_user', $user_id ) ) {
+		return;
+	}
+	if ( isset( $_POST['kompas_author_photo'] ) ) {
+		update_user_meta( $user_id, 'kompas_author_photo', absint( $_POST['kompas_author_photo'] ) );
+	}
+}
+add_action( 'personal_options_update', 'kompas_save_author_photo' );
+add_action( 'edit_user_profile_update', 'kompas_save_author_photo' );
+
+/**
+ * Filter avatar URL to use custom photo if set.
+ */
+function kompas_custom_avatar_url( $url, $id_or_email, $args ) {
+	$user_id = 0;
+
+	if ( is_numeric( $id_or_email ) ) {
+		$user_id = (int) $id_or_email;
+	} elseif ( is_string( $id_or_email ) ) {
+		$user = get_user_by( 'email', $id_or_email );
+		if ( $user ) {
+			$user_id = $user->ID;
+		}
+	} elseif ( $id_or_email instanceof WP_User ) {
+		$user_id = $id_or_email->ID;
+	} elseif ( $id_or_email instanceof WP_Post ) {
+		$user_id = $id_or_email->post_author;
+	} elseif ( $id_or_email instanceof WP_Comment ) {
+		if ( $id_or_email->user_id ) {
+			$user_id = (int) $id_or_email->user_id;
+		}
+	}
+
+	if ( ! $user_id ) {
+		return $url;
+	}
+
+	$photo_id = get_user_meta( $user_id, 'kompas_author_photo', true );
+	if ( $photo_id ) {
+		$photo_url = wp_get_attachment_image_url( $photo_id, 'thumbnail' );
+		if ( $photo_url ) {
+			return $photo_url;
+		}
+	}
+
+	return $url;
+}
+add_filter( 'get_avatar_url', 'kompas_custom_avatar_url', 10, 3 );
+
+/**
+ * Enqueue media uploader script on profile pages.
+ */
+function kompas_enqueue_author_photo_script( $hook ) {
+	if ( 'profile.php' !== $hook && 'user-edit.php' !== $hook ) {
+		return;
+	}
+	wp_enqueue_media();
+	wp_enqueue_script(
+		'kompas-author-photo',
+		get_theme_file_uri( 'assets/js/author-photo.js' ),
+		array( 'jquery' ),
+		KOMPAS_VERSION,
+		true
+	);
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_author_photo_script' );
+
+/**
+ * ── Per-Category Hero Posts ──────────────────────────────────
+ */
+
+/**
+ * Render hero post picker on category edit screen.
+ */
+function kompas_category_hero_fields( $term ) {
+	$hero_ids = get_term_meta( $term->term_id, 'kompas_hero_posts', true );
+	$hero_ids = is_array( $hero_ids ) ? $hero_ids : array();
+	?>
+	<tr class="form-field">
+		<th scope="row"><label>Hero postovi (7)</label></th>
+		<td>
+			<div id="kompas-category-hero-wrap">
+				<input type="hidden" id="kompas-category-hero-ids" name="kompas_hero_posts" value="<?php echo esc_attr( implode( ',', $hero_ids ) ); ?>" />
+				<div id="kompas-category-hero-list" style="margin-bottom:10px"></div>
+				<input type="text" id="kompas-category-hero-search" placeholder="Претражи постове..." class="regular-text" autocomplete="off" />
+				<div id="kompas-category-hero-results" style="max-height:200px;overflow-y:auto;margin-top:4px"></div>
+				<p class="description">Изаберите до 7 постова за hero секцију ове категорије.</p>
+			</div>
+		</td>
+	</tr>
+	<?php
+}
+add_action( 'category_edit_form_fields', 'kompas_category_hero_fields' );
+
+/**
+ * Save hero post IDs as term meta.
+ */
+function kompas_save_category_hero( $term_id ) {
+	if ( ! isset( $_POST['kompas_hero_posts'] ) ) {
+		return;
+	}
+	$ids = array_map( 'absint', array_filter( explode( ',', sanitize_text_field( $_POST['kompas_hero_posts'] ) ) ) );
+	update_term_meta( $term_id, 'kompas_hero_posts', $ids );
+}
+add_action( 'edited_category', 'kompas_save_category_hero' );
+
+/**
+ * Enqueue category hero picker script on term edit pages.
+ */
+function kompas_enqueue_category_hero_script( $hook ) {
+	if ( 'term.php' !== $hook && 'edit-tags.php' !== $hook ) {
+		return;
+	}
+	$screen = get_current_screen();
+	if ( ! $screen || 'category' !== $screen->taxonomy ) {
+		return;
+	}
+	wp_enqueue_script(
+		'kompas-category-hero',
+		get_theme_file_uri( 'assets/js/category-hero.js' ),
+		array(),
+		KOMPAS_VERSION,
+		true
+	);
+	wp_localize_script( 'kompas-category-hero', 'kompasHeroData', array(
+		'nonce' => wp_create_nonce( 'wp_rest' ),
+	) );
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_category_hero_script' );

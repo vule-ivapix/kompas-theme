@@ -359,7 +359,7 @@
 							PanelBody,
 							{
 								title: 'Ručni izbor postova',
-								initialOpen: false,
+								initialOpen: true,
 							},
 							el( PostPicker, {
 								value: postIn,

@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/homepage-hero",
+	"title": "Kompas Hero Naslovna",
+	"category": "theme",
+	"description": "Hero sekcija za naslovnu: 1 velika vest (centar) | 3 sidebar (levo) | 2 horizontalne (centar dole). Ručno biranje 6 postova.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"heroPostIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"editorStyle": "file:./editor.css",
+	"render": "file:../../render/homepage-hero.php"
+}

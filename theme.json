@@ -258,6 +258,7 @@
   "templateParts": [
     { "name": "header", "title": "Header", "area": "header" },
     { "name": "header-author", "title": "Header - Author", "area": "header" },
+    { "name": "header-kolumne", "title": "Header - Kolumne", "area": "header" },
     { "name": "footer", "title": "Footer", "area": "footer" },
     { "name": "footer-author", "title": "Footer - Author", "area": "footer" }
   ],

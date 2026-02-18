@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/footer-pages",
+	"title": "Kompas Footer Stranice",
+	"category": "theme",
+	"description": "Prikazuje izabrane stranice u donjem footer meniju.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"selectedIds": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/footer-pages.php"
+}

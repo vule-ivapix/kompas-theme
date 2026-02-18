@@ -1,26 +1,101 @@
 /* Editor styles for kompas/kolumne */
-.wp-block-kompas-kolumne {
-	max-width: 300px;
+.wp-block-kompas-kolumne .kompas-section-topline {
+	position: relative;
+	border-top: 1px solid var(--wp--preset--color--border);
+	padding-top: var(--wp--preset--spacing--40);
 }
 
-.wp-block-kompas-kolumne .kompas-kolumne__avatar {
-	width: 60px;
-	height: 60px;
+.wp-block-kompas-kolumne .kompas-section-topline::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: min(280px, 100%);
+	border-top: 8px solid var(--wp--preset--color--primary);
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne {
+	padding: 0;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__heading {
+	margin-bottom: var(--wp--preset--spacing--50);
 }
 
 .wp-block-kompas-kolumne .kompas-kolumne__title {
-	font-size: 0.875rem;
+	font-size: 1rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--wp--preset--color--dark);
+	margin: 0;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--40);
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--wp--preset--spacing--30);
+	text-decoration: none;
+	color: inherit;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__item:hover .kompas-kolumne__name {
+	color: var(--wp--preset--color--primary);
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__avatar {
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__text {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
 }
 
 .wp-block-kompas-kolumne .kompas-kolumne__name {
-	font-size: 0.75rem;
+	font-size: 0.8125rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--wp--preset--color--dark);
+	transition: color 0.15s;
 }
 
 .wp-block-kompas-kolumne .kompas-kolumne__excerpt {
-	font-size: 0.75rem;
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--wp--preset--color--muted);
 }
 
 .wp-block-kompas-kolumne .kompas-kolumne__more {
-	font-size: 0.6875rem;
-	padding: 0.5rem 1rem;
+	display: inline-block;
+	margin-top: var(--wp--preset--spacing--50);
+	padding: 0.625rem 1.5rem;
+	border: 2px solid var(--wp--preset--color--dark);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	transition: background 0.15s, color 0.15s;
+}
+
+.wp-block-kompas-kolumne .kompas-kolumne__more:hover {
+	background: var(--wp--preset--color--dark);
+	color: #fff;
 }
