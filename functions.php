@@ -498,6 +498,7 @@ function kompas_render_tabs_block( $attributes ) {
 			<?php echo kompas_render_posts_grid( $najcitanije ); ?>
 		</div>
 
+
 	</div>
 	<?php
 	return ob_get_clean();
@@ -526,8 +527,8 @@ function kompas_render_posts_grid( $posts ) {
 					 style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
-			<h4 style="font-size:0.875rem;font-weight:700;line-height:1.3;margin:0">
-				<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( get_the_title( $post ) ); ?></a>
+			<h4 style="font-size:0.9375rem;font-weight:700;line-height:1.3;margin:0">
+				<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $post ) ) ); ?></a>
 			</h4>
 		</div>
 		<?php endforeach; ?>
@@ -615,13 +616,17 @@ function kompas_render_footer_categories( $attributes = array() ) {
 			$output .= esc_html( mb_strtoupper( $cat->name ) );
 		$output .= '</a></h4>';
 
-		$tags = kompas_get_tags_for_category( $cat->term_id, 6 );
+		$subcats = get_categories( array(
+			'parent'     => $cat->term_id,
+			'hide_empty' => false,
+			'number'     => 6,
+		) );
 
-		if ( ! empty( $tags ) ) {
-			foreach ( $tags as $tag ) {
+		if ( ! empty( $subcats ) ) {
+			foreach ( $subcats as $subcat ) {
 				$output .= '<p class="has-muted-color has-text-color" style="font-size:0.8125rem;margin-top:0;margin-bottom:0.4rem">';
-				$output .= '<a href="' . esc_url( get_tag_link( $tag->term_id ) ) . '" style="color:inherit;text-decoration:none">';
-					$output .= esc_html( mb_strtoupper( $tag->name ) );
+				$output .= '<a href="' . esc_url( get_category_link( $subcat->term_id ) ) . '" style="color:inherit;text-decoration:none">';
+					$output .= esc_html( mb_strtoupper( $subcat->name ) );
 				$output .= '</a></p>';
 			}
 		}
@@ -736,7 +741,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 						<?php endif; ?>
 					</a>
 					<h2 class="kompas-archive-title kompas-archive-title--lg">
-						<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>"><?php echo esc_html( get_the_title( $hero_main ) ); ?></a>
+						<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $hero_main ) ) ); ?></a>
 					</h2>
 					<p class="kompas-archive-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $hero_main ), 30 ) ); ?></p>
 				</div>
@@ -755,7 +760,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 						<?php endif; ?>
 						<div class="kompas-archive-card-h__text">
 							<h3 class="kompas-archive-title kompas-archive-title--md">
-								<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+								<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 							</h3>
 						</div>
 					</div>
@@ -777,7 +782,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 					</a>
 					<?php endif; ?>
 					<h4 class="kompas-archive-title kompas-archive-title--sm">
-						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 					</h4>
 				</div>
 				<?php endforeach; ?>
@@ -829,7 +834,7 @@ function kompas_render_archive_layout( $attributes = array() ) {
 					</a>
 					<?php endif; ?>
 					<h4 class="kompas-archive-title <?php echo $big ? 'kompas-archive-title--md' : 'kompas-archive-title--sm'; ?>">
-						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 					</h4>
 					<?php if ( $big ) : ?>
 					<p class="kompas-archive-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $p ), 20 ) ); ?></p>
@@ -1239,3 +1244,301 @@ function kompas_enqueue_category_hero_script( $hook ) {
 	) );
 }
 add_action( 'admin_enqueue_scripts', 'kompas_enqueue_category_hero_script' );
+
+/**
+ * ── Format "Не преводи" (script-toggle zaštita) ──────────────
+ */
+
+/**
+ * Enqueue the inline format registration script for the block editor.
+ */
+function kompas_enqueue_format_neprevedi() {
+	$path = get_theme_file_path( 'assets/js/format-neprevedi.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+
+	wp_enqueue_script(
+		'kompas-format-neprevedi',
+		get_theme_file_uri( 'assets/js/format-neprevedi.js' ),
+		array( 'wp-rich-text', 'wp-block-editor', 'wp-element' ),
+		$ver,
+		true
+	);
+
+	// Editor-only style: subtle highlight so the editor sees marked text.
+	wp_add_inline_style(
+		'wp-edit-blocks',
+		'.kompas-neprevedi { background: rgba(232,45,52,0.12); border-bottom: 2px solid #e82d34; border-radius: 2px; padding: 0 1px; }'
+	);
+}
+add_action( 'enqueue_block_editor_assets', 'kompas_enqueue_format_neprevedi' );
+
+/**
+ * ── Admin: Statistika ─────────────────────────────────────────
+ */
+
+/**
+ * Register "Statistika" admin menu page.
+ */
+function kompas_add_statistics_page() {
+	add_menu_page(
+		'Kompas Statistika',
+		'Statistika',
+		'edit_posts',
+		'kompas-statistics',
+		'kompas_render_statistics_page',
+		'dashicons-chart-bar',
+		3
+	);
+}
+add_action( 'admin_menu', 'kompas_add_statistics_page' );
+
+/**
+ * Render callback – loads the statistics template.
+ */
+function kompas_render_statistics_page() {
+	require get_theme_file_path( 'admin/statistics.php' );
+}
+
+/**
+ * ── Srpski format datuma ──────────────────────────────────────
+ */
+
+/**
+ * Format post date in Serbian: "24. januar 2026."
+ */
+function kompas_format_date_serbian( $the_date, $format, $post ) {
+	if ( ! empty( $format ) ) {
+		return $the_date;
+	}
+
+	static $months = array(
+		1  => 'јануар',
+		2  => 'фебруар',
+		3  => 'март',
+		4  => 'април',
+		5  => 'мај',
+		6  => 'јун',
+		7  => 'јул',
+		8  => 'август',
+		9  => 'септембар',
+		10 => 'октобар',
+		11 => 'новембар',
+		12 => 'децембар',
+	);
+
+	if ( ! $post instanceof WP_Post ) {
+		$post = get_post( $post );
+	}
+	if ( ! $post ) {
+		return $the_date;
+	}
+
+	$timestamp = get_post_time( 'U', false, $post );
+	$day       = (int) gmdate( 'j', $timestamp );
+	$month     = isset( $months[ (int) gmdate( 'n', $timestamp ) ] ) ? $months[ (int) gmdate( 'n', $timestamp ) ] : $the_date;
+	$year      = gmdate( 'Y', $timestamp );
+
+	return $day . '. ' . $month . ' ' . $year . '.';
+}
+add_filter( 'get_the_date', 'kompas_format_date_serbian', 10, 3 );
+
+/**
+ * ── Sakrivanje autora ako nije unet ──────────────────────────
+ */
+
+/**
+ * Hide the author label+name group when no custom author is set for the post.
+ *
+ * The inner group in single.html has className "kompas-author-wrap".
+ * When no custom author meta is present, the entire group is suppressed.
+ */
+function kompas_hide_author_wrap( $block_content, $block, $instance ) {
+	if ( empty( $block['attrs']['className'] ) || false === strpos( $block['attrs']['className'], 'kompas-author-wrap' ) ) {
+		return $block_content;
+	}
+
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$custom_author = trim( (string) get_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY, true ) );
+	if ( '' === $custom_author ) {
+		return '';
+	}
+
+	return $block_content;
+}
+add_filter( 'render_block_core/group', 'kompas_hide_author_wrap', 10, 3 );
+
+/**
+ * ── Izvor fotografije (caption) ispod featured image ─────────
+ */
+
+/**
+ * Append the featured image caption (attachment excerpt) below the image in single posts.
+ */
+function kompas_featured_image_caption( $block_content, $block, $instance ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $block_content;
+	}
+
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$thumbnail_id = get_post_thumbnail_id( $post_id );
+	if ( ! $thumbnail_id ) {
+		return $block_content;
+	}
+
+	$attachment = get_post( $thumbnail_id );
+	if ( ! $attachment ) {
+		return $block_content;
+	}
+
+	$caption = trim( $attachment->post_excerpt );
+	if ( '' === $caption ) {
+		return $block_content;
+	}
+
+	$caption_html = '<p class="kompas-featured-caption">' . esc_html( $caption ) . '</p>';
+	return str_replace( '</figure>', $caption_html . '</figure>', $block_content );
+}
+add_filter( 'render_block_core/post-featured-image', 'kompas_featured_image_caption', 10, 3 );
+
+/**
+ * Add data-full attribute to featured image for lightbox full-size display.
+ */
+function kompas_featured_image_full_url( $block_content, $block, $instance ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $block_content;
+	}
+
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$thumbnail_id = get_post_thumbnail_id( $post_id );
+	if ( ! $thumbnail_id ) {
+		return $block_content;
+	}
+
+	$full_url = wp_get_attachment_url( $thumbnail_id );
+	if ( $full_url ) {
+		$block_content = str_replace( '<img ', '<img data-full="' . esc_attr( $full_url ) . '" ', $block_content );
+	}
+
+	return $block_content;
+}
+add_filter( 'render_block_core/post-featured-image', 'kompas_featured_image_full_url', 9, 3 );
+
+/**
+ * ── Share linkovi ─────────────────────────────────────────────
+ */
+
+/**
+ * Replace placeholder "#" share URLs with functional share links for the current post.
+ */
+function kompas_fix_share_links( $block_content, $block ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $block_content;
+	}
+
+	if ( empty( $block['attrs']['url'] ) || '#' !== $block['attrs']['url'] ) {
+		return $block_content;
+	}
+
+	$post_url   = rawurlencode( (string) get_permalink() );
+	$post_title = rawurlencode( (string) get_the_title() );
+	$service    = ! empty( $block['attrs']['service'] ) ? $block['attrs']['service'] : '';
+
+	switch ( $service ) {
+		case 'facebook':
+			$share_url = 'https://www.facebook.com/sharer/sharer.php?u=' . $post_url;
+			break;
+		case 'x':
+			$share_url = 'https://x.com/intent/tweet?url=' . $post_url . '&text=' . $post_title;
+			break;
+		case 'linkedin':
+			$share_url = 'https://www.linkedin.com/sharing/share-offsite/?url=' . $post_url;
+			break;
+		case 'mail':
+			$share_url = 'mailto:?subject=' . $post_title . '&body=' . $post_url;
+			break;
+		default:
+			return $block_content;
+	}
+
+	return str_replace( 'href="#"', 'href="' . esc_attr( $share_url ) . '"', $block_content );
+}
+add_filter( 'render_block_core/social-link', 'kompas_fix_share_links', 10, 2 );
+
+/**
+ * ── Lightbox skripte ─────────────────────────────────────────
+ */
+
+/**
+ * Enqueue lightbox script only on single post pages.
+ */
+function kompas_enqueue_lightbox() {
+	if ( ! is_singular( 'post' ) ) {
+		return;
+	}
+
+	$path = get_theme_file_path( 'assets/js/lightbox.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+
+	wp_enqueue_script(
+		'kompas-lightbox',
+		get_theme_file_uri( 'assets/js/lightbox.js' ),
+		array(),
+		$ver,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_lightbox' );
+
+/**
+ * ── Pomoćna funkcija za skraćivanje naslova ──────────────────
+ */
+
+/**
+ * Truncate a title to a maximum number of characters, appending ellipsis if needed.
+ *
+ * @param string $title  The post title.
+ * @param int    $length Maximum character count (default 60).
+ * @return string        Truncated title.
+ */
+function kompas_truncate_title( $title, $length = 60 ) {
+	if ( mb_strlen( $title ) <= $length ) {
+		return $title;
+	}
+	return mb_substr( $title, 0, $length ) . '…';
+}

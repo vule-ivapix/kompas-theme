@@ -3,7 +3,7 @@
  * Render: kompas/rec-urednika
  */
 $post_id       = ! empty( $attributes['postId'] ) ? (int) $attributes['postId'] : 0;
-$title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ ГЛАВНЕ УРЕДНИЦЕ';
+$title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ ГЛАВНОГ УРЕДНИКА';
 $link_text     = ! empty( $attributes['linkText'] ) ? $attributes['linkText'] : 'ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ';
 $category_slug = ! empty( $attributes['categorySlug'] ) ? $attributes['categorySlug'] : 'rec-urednika';
 

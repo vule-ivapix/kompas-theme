@@ -51,8 +51,8 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 
 	<!-- Left sidebar (3 posts) -->
 	<div class="kompas-homepage-hero__sidebar">
-		<?php foreach ( $sidebar_posts as $p ) : ?>
-		<div class="kompas-homepage-hero__sidebar-item" style="margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);border-bottom:1px solid var(--wp--preset--color--border)">
+		<?php $sidebar_last = count( $sidebar_posts ) - 1; foreach ( $sidebar_posts as $si => $p ) : ?>
+		<div class="kompas-homepage-hero__sidebar-item" style="margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);<?php echo $si < $sidebar_last ? 'border-bottom:1px solid var(--wp--preset--color--border)' : ''; ?>">
 			<?php if ( has_post_thumbnail( $p ) ) : ?>
 			<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="display:block;margin-bottom:var(--wp--preset--spacing--30)">
 				<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'kompas-thumbnail' ) ); ?>"
@@ -60,8 +60,8 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 					 style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
-			<h3 style="font-size:1rem;font-weight:700;line-height:1.3;margin:0">
-				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+			<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0">
+				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 			</h3>
 		</div>
 		<?php endforeach; ?>
@@ -80,25 +80,25 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 					 style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
-			<h2 style="font-size:1.75rem;font-weight:700;line-height:1.25;margin:0">
-				<a href="<?php echo esc_url( get_permalink( $main_post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( get_the_title( $main_post ) ); ?></a>
+			<h2 style="font-size:2rem;font-weight:700;line-height:1.2;margin:0">
+				<a href="<?php echo esc_url( get_permalink( $main_post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $main_post ) ) ); ?></a>
 			</h2>
 		</div>
 		<?php endif; ?>
 
 		<!-- Sub posts (horizontal cards) -->
-		<?php foreach ( $sub_posts as $p ) : ?>
-		<div class="kompas-homepage-hero__sub-item" style="display:flex;flex-wrap:nowrap;align-items:flex-start;gap:var(--wp--preset--spacing--40);margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);border-bottom:1px solid var(--wp--preset--color--border)">
+		<?php $sub_last = count( $sub_posts ) - 1; foreach ( $sub_posts as $si => $p ) : ?>
+		<div class="kompas-homepage-hero__sub-item" style="display:flex;flex-wrap:nowrap;align-items:flex-start;gap:var(--wp--preset--spacing--40);margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);<?php echo $si < $sub_last ? 'border-bottom:1px solid var(--wp--preset--color--border)' : ''; ?>">
 			<?php if ( has_post_thumbnail( $p ) ) : ?>
-			<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="flex:0 0 300px;max-width:300px;display:block">
+			<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="flex:0 0 190px;max-width:190px;display:block">
 				<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'kompas-thumbnail' ) ); ?>"
 					 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
 					 style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
 			<div style="flex:1 1 auto">
-				<h3 style="font-size:1rem;font-weight:700;line-height:1.3;margin:0">
-					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+				<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0">
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 				</h3>
 			</div>
 		</div>

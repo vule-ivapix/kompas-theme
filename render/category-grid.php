@@ -81,6 +81,7 @@ foreach ( $selected as $cat_id ) :
 			<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-catgrid__title">
 				<?php echo esc_html( mb_strtoupper( $cat->name ) ); ?>
 			</a>
+			<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-more-link kompas-catgrid__more">ПОГЛЕДАЈ СВЕ</a>
 		</div>
 
 	<!-- 2 large posts -->
@@ -121,6 +122,7 @@ foreach ( $selected as $cat_id ) :
 		<?php endforeach; ?>
 	</div>
 	<?php endif; ?>
+
 
 </div>
 <?php endforeach;

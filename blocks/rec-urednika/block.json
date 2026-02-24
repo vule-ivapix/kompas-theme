@@ -16,7 +16,7 @@
 		},
 		"title": {
 			"type": "string",
-			"default": "РЕЧ ГЛАВНЕ УРЕДНИЦЕ"
+			"default": "РЕЧ ГЛАВНОГ УРЕДНИКА"
 		},
 		"linkText": {
 			"type": "string",

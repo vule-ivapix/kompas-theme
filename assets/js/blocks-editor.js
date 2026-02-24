@@ -73,20 +73,160 @@
 	}
 
 	/**
-	 * Factory: creates an edit component with a TermPicker sidebar + SSR preview.
+	 * SortableTermPicker: selected items with ▲▼ reorder + checkbox list to add/remove.
 	 */
-	function makeEdit( blockName, restBase, pickerLabel ) {
+	function SortableTermPicker( props ) {
+		var selectedIds = props.selectedIds || [];
+		var onChange    = props.onChange;
+		var restBase    = props.restBase;
+		var label       = props.label;
+
+		var termsState = useState( [] );
+		var loadState  = useState( true );
+		var termList   = termsState[0];
+		var setTerms   = termsState[1];
+		var isLoading  = loadState[0];
+		var setLoading = loadState[1];
+
+		useEffect( function() {
+			apiFetch( { path: '/wp/v2/' + restBase + '?per_page=100&hide_empty=false&orderby=name&order=asc' } )
+				.then( function( data ) { setTerms( data ); setLoading( false ); } )
+				.catch( function() { setLoading( false ); } );
+		}, [ restBase ] );
+
+		if ( isLoading ) {
+			return el( PanelBody, { title: label, initialOpen: true }, el( Spinner ) );
+		}
+
+		// id → term object lookup
+		var termMap = {};
+		termList.forEach( function( t ) { termMap[ t.id ] = t; } );
+
+		function move( idx, dir ) {
+			var next = selectedIds.slice();
+			var to   = idx + dir;
+			if ( to < 0 || to >= next.length ) { return; }
+			var tmp    = next[ idx ];
+			next[ idx ] = next[ to ];
+			next[ to ]  = tmp;
+			onChange( next );
+		}
+
+		function remove( id ) {
+			onChange( selectedIds.filter( function( x ) { return x !== id; } ) );
+		}
+
+		function add( id ) {
+			if ( selectedIds.indexOf( id ) === -1 ) {
+				onChange( selectedIds.concat( [ id ] ) );
+			}
+		}
+
+		var unselected = termList.filter( function( t ) {
+			return selectedIds.indexOf( t.id ) === -1;
+		} );
+
+		var sectionLabel = {
+			margin: '0 0 5px',
+			fontSize: '10px',
+			fontWeight: '700',
+			textTransform: 'uppercase',
+			letterSpacing: '0.06em',
+			color: '#757575',
+		};
+		var rowStyle = {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '3px',
+			marginBottom: '4px',
+			background: '#f0f0f0',
+			padding: '5px 6px',
+			borderRadius: '3px',
+		};
+		var btn = {
+			background: '#fff',
+			border: '1px solid #bbb',
+			borderRadius: '2px',
+			padding: '1px 5px',
+			cursor: 'pointer',
+			fontSize: '11px',
+			lineHeight: '1.4',
+			minWidth: '22px',
+			textAlign: 'center',
+		};
+		var btnDanger = Object.assign( {}, btn, {
+			color: '#b91c1c',
+			borderColor: '#f9a8a8',
+			marginLeft: 'auto',
+			background: '#fff5f5',
+		} );
+
+		return el( PanelBody, { title: label, initialOpen: true },
+
+			/* ── Selected items in chosen order ── */
+			el( 'p', { style: sectionLabel }, 'Redosled (' + selectedIds.length + ' izabrano)' ),
+
+			selectedIds.length === 0
+				? el( 'p', { style: { fontSize: '12px', color: '#aaa', marginBottom: '12px' } }, 'Nije izabrana nijedna stavka.' )
+				: el( 'div', { style: { marginBottom: '14px' } },
+					selectedIds.map( function( id, idx ) {
+						var term = termMap[ id ];
+						if ( ! term ) { return null; }
+						return el( 'div', { key: id, style: rowStyle },
+							el( 'button', {
+								style:    Object.assign( {}, btn, { opacity: idx === 0 ? 0.3 : 1 } ),
+								disabled: idx === 0,
+								title:    'Pomeri gore',
+								onClick:  function( e ) { e.preventDefault(); move( idx, -1 ); },
+							}, '▲' ),
+							el( 'button', {
+								style:    Object.assign( {}, btn, { opacity: idx === selectedIds.length - 1 ? 0.3 : 1 } ),
+								disabled: idx === selectedIds.length - 1,
+								title:    'Pomeri dole',
+								onClick:  function( e ) { e.preventDefault(); move( idx, 1 ); },
+							}, '▼' ),
+							el( 'span', { style: { flex: 1, fontSize: '12px', fontWeight: '500', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, term.name ),
+							el( 'button', {
+								style:   btnDanger,
+								title:   'Ukloni',
+								onClick: function( e ) { e.preventDefault(); remove( id ); },
+							}, '×' )
+						);
+					} )
+				),
+
+			/* ── Unselected items to add ── */
+			unselected.length > 0 && el( 'div', null,
+				el( 'p', { style: sectionLabel }, 'Dodaj' ),
+				unselected.map( function( term ) {
+					return el( CheckboxControl, {
+						key:      term.id,
+						label:    term.name + ( term.count ? ' (' + term.count + ')' : '' ),
+						checked:  false,
+						onChange: function( checked ) { if ( checked ) { add( term.id ); } },
+					} );
+				} )
+			)
+		);
+	}
+
+	/**
+	 * Factory: creates an edit component with a sortable or plain TermPicker + SSR preview.
+	 * Pass sortable:true for drag-to-reorder support.
+	 */
+	function makeEdit( blockName, restBase, pickerLabel, sortable ) {
 		return function( props ) {
 			var blockProps  = useBlockProps();
 			var selectedIds = props.attributes.selectedIds || [];
+			var Picker      = sortable ? SortableTermPicker : TermPicker;
 
 			return el( element.Fragment, null,
 				el( InspectorControls, null,
-					el( TermPicker, {
+					el( Picker, {
 						selectedIds: selectedIds,
 						restBase:    restBase,
 						label:       pickerLabel,
-						onChange:     function( next ) {
+						onChange:    function( next ) {
 							props.setAttributes( { selectedIds: next } );
 						},
 					} )
@@ -102,9 +242,9 @@
 		};
 	}
 
-	/* ── Header Nav (categories) ─────────────────────────────── */
+	/* ── Header Nav (categories) – sa redosledom ─────────────── */
 	blocks.registerBlockType( 'kompas/header-nav', {
-		edit: makeEdit( 'kompas/header-nav', 'categories', 'Kategorije za navigaciju' ),
+		edit: makeEdit( 'kompas/header-nav', 'categories', 'Kategorije za navigaciju', true ),
 		save: function() { return null; },
 	} );
 
@@ -114,35 +254,34 @@
 		save: function() { return null; },
 	} );
 
-		/* ── Footer Categories ───────────────────────────────────── */
-		blocks.registerBlockType( 'kompas/footer-categories', {
-			edit: function( props ) {
-				var blockProps  = useBlockProps();
-				var selectedIds = props.attributes.selectedIds || [];
+	/* ── Footer Categories – sa redosledom ───────────────────── */
+	blocks.registerBlockType( 'kompas/footer-categories', {
+		edit: function( props ) {
+			var blockProps  = useBlockProps();
+			var selectedIds = props.attributes.selectedIds || [];
 
-				return el( element.Fragment, null,
-					el( InspectorControls, null,
-						el( TermPicker, {
-							selectedIds: selectedIds,
-							restBase:    'categories',
-							label:       'Kategorije u footeru',
-							max:         8,
-							onChange:     function( next ) {
-								props.setAttributes( { selectedIds: next } );
-							},
-						} )
-					),
-					el( 'div', blockProps,
-						el( SSR, {
-							key:        JSON.stringify( props.attributes ),
-							block:      'kompas/footer-categories',
-							attributes: props.attributes,
-						} )
-					)
-				);
-			},
-			save: function() { return null; },
-		} );
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( SortableTermPicker, {
+						selectedIds: selectedIds,
+						restBase:    'categories',
+						label:       'Kategorije u footeru',
+						onChange:    function( next ) {
+							props.setAttributes( { selectedIds: next } );
+						},
+					} )
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/footer-categories',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
 
 		/* ── Footer Pages ────────────────────────────────────────── */
 		blocks.registerBlockType( 'kompas/footer-pages', {

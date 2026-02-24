@@ -73,6 +73,11 @@
 			return;
 		}
 
+		// Skip elements marked as "ne prevodi" – ostaju u originalnom pismu.
+		if ( node.nodeType === 1 && node.classList && node.classList.contains( 'kompas-neprevedi' ) ) {
+			return;
+		}
+
 		// Do not convert user-entered form values in generic walk.
 		if ( tag && /^(TEXTAREA|INPUT)$/i.test( tag ) ) {
 			if ( node.nodeType === 1 ) {

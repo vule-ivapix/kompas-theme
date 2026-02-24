@@ -1839,8 +1839,12 @@ body.kompas-mobile-menu-open {
 }
 
 .kompas-catgrid__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 	margin-bottom: var(--wp--preset--spacing--50);
 }
+
 
 .kompas-catgrid__title {
 	font-size: 1rem;
@@ -2104,4 +2108,111 @@ body.kompas-mobile-menu-open {
 .kompas-rec-urednika__more:hover {
 	color: var(--wp--preset--color--primary);
 	border-color: var(--wp--preset--color--primary);
+}
+
+/* ========================================================================
+   "Pogledaj sve" / "Pogledaj više" – generičan link
+   ======================================================================== */
+
+.kompas-more-link {
+	display: inline-block;
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-decoration: none;
+	color: var(--wp--preset--color--dark);
+	border-bottom: 2px solid var(--wp--preset--color--dark);
+	padding-bottom: 2px;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.kompas-more-link:hover {
+	color: var(--wp--preset--color--primary);
+	border-color: var(--wp--preset--color--primary);
+}
+
+/* ========================================================================
+   Single Post: linkovi u tekstu (crvena boja)
+   ======================================================================== */
+
+.wp-block-post-content a:not( .wp-block-button__link ):not( .wp-element-button ) {
+	color: var(--wp--preset--color--primary);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	text-decoration-thickness: 1px;
+}
+
+.wp-block-post-content a:not( .wp-block-button__link ):not( .wp-element-button ):hover {
+	text-decoration: none;
+}
+
+/* ========================================================================
+   Featured Image Caption (izvor fotografije)
+   ======================================================================== */
+
+.kompas-featured-caption {
+	font-size: 0.8125rem;
+	color: var(--wp--preset--color--muted);
+	font-style: italic;
+	margin: 0.5rem 0 0;
+	padding: 0;
+	line-height: 1.4;
+}
+
+/* ========================================================================
+   Lightbox
+   ======================================================================== */
+
+.kompas-lightbox {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.92);
+	z-index: 99999;
+	justify-content: center;
+	align-items: center;
+	padding: 1rem;
+	box-sizing: border-box;
+}
+
+.kompas-lightbox.is-open {
+	display: flex;
+}
+
+.kompas-lightbox__wrap {
+	position: relative;
+	max-width: 90vw;
+	max-height: 90vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.kompas-lightbox__img {
+	display: block;
+	max-width: 90vw;
+	max-height: 90vh;
+	width: auto;
+	height: auto;
+	object-fit: contain;
+}
+
+.kompas-lightbox__close {
+	position: absolute;
+	top: -2.5rem;
+	right: 0;
+	background: none;
+	border: none;
+	color: #fff;
+	font-size: 2.25rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0.25rem;
+	opacity: 0.85;
+	transition: opacity 0.15s;
+}
+
+.kompas-lightbox__close:hover {
+	opacity: 1;
 }
