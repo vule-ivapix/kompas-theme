@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'KOMPAS_VERSION', '1.0.1' );
+define( 'KOMPAS_VERSION', wp_get_theme()->get( 'Version' ) );
 define( 'KOMPAS_CUSTOM_AUTHOR_META_KEY', 'kompas_custom_author' );
 
 /**
@@ -64,11 +64,16 @@ add_action( 'init', 'kompas_register_pattern_categories' );
  * Register Curated Query block variation and its server-side filtering.
  */
 function kompas_register_curated_query() {
+	$path = get_theme_file_path( 'assets/js/curated-query.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
 	wp_enqueue_script(
 		'kompas-curated-query',
 		get_theme_file_uri( 'assets/js/curated-query.js' ),
 		array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-hooks', 'wp-compose', 'wp-api-fetch' ),
-		KOMPAS_VERSION,
+		$ver,
 		true
 	);
 }
@@ -241,11 +246,16 @@ add_action( 'init', 'kompas_register_gallery_slider_block' );
  */
 function kompas_enqueue_gallery_slider_script() {
 	if ( is_singular() ) {
+		$path = get_theme_file_path( 'assets/js/gallery-slider.js' );
+		$ver  = KOMPAS_VERSION;
+		if ( file_exists( $path ) ) {
+			$ver .= '.' . (string) filemtime( $path );
+		}
 		wp_enqueue_script(
 			'kompas-gallery-slider',
 			get_theme_file_uri( 'assets/js/gallery-slider.js' ),
 			array(),
-			KOMPAS_VERSION,
+			$ver,
 			true
 		);
 	}
@@ -410,11 +420,16 @@ add_action( 'wp', 'kompas_track_views' );
  * Enqueue frontend tabs script.
  */
 function kompas_enqueue_tabs_script() {
+	$path = get_theme_file_path( 'assets/js/tabs.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
 	wp_enqueue_script(
 		'kompas-tabs',
 		get_theme_file_uri( 'assets/js/tabs.js' ),
 		array(),
-		KOMPAS_VERSION,
+		$ver,
 		true
 	);
 }
@@ -700,13 +715,13 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		$hero_ids   = wp_list_pluck( $hero_posts, 'ID' );
 	}
 
-	// Grid: use main archive query but exclude hero posts.
+	// Grid: use main archive query; exclude hero posts only on page 1.
 	$args = array_merge( $wp_query->query_vars, array(
 		'posts_per_page' => $per_page,
 		'paged'          => $paged,
 		'post_status'    => 'publish',
 	) );
-	if ( ! empty( $hero_ids ) ) {
+	if ( $paged === 1 && ! empty( $hero_ids ) ) {
 		$args['post__not_in'] = $hero_ids;
 	}
 
@@ -721,8 +736,9 @@ function kompas_render_archive_layout( $attributes = array() ) {
 	?>
 	<div class="kompas-archive-layout">
 
+		<?php if ( $paged === 1 ) : ?>
 		<?php
-		// ── HERO SECTION: from manually selected posts ──────────
+		// ── HERO SECTION: samo na prvoj strani ──────────────────
 		$hero_main   = isset( $hero_posts[0] ) ? $hero_posts[0] : null;
 		$hero_horiz  = array_slice( $hero_posts, 1, 2 );
 		$hero_side   = array_slice( $hero_posts, 3, 4 );
@@ -794,8 +810,11 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		<?php
 		// ── BANNER ──────────────────────────────────────────────
 		echo do_blocks( '<!-- wp:kompas/banner /-->' );
+		?>
+		<?php endif; // $paged === 1 ?>
 
-		// ── GRID: from archive query (hero posts excluded) ──────
+		<?php
+		// ── GRID: from archive query ─────────────────────────────
 		if ( ! empty( $grid_posts ) ) :
 			$row_index = 0;
 			$i         = 0;
@@ -1029,11 +1048,16 @@ add_action( 'init', 'kompas_register_mobile_nav_block' );
  * Enqueue mobile nav script.
  */
 function kompas_enqueue_mobile_nav_script() {
+	$path = get_theme_file_path( 'assets/js/mobile-nav.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
 	wp_enqueue_script(
 		'kompas-mobile-nav',
 		get_theme_file_uri( 'assets/js/mobile-nav.js' ),
 		array(),
-		KOMPAS_VERSION,
+		$ver,
 		true
 	);
 }
@@ -1172,11 +1196,16 @@ function kompas_enqueue_author_photo_script( $hook ) {
 		return;
 	}
 	wp_enqueue_media();
+	$path = get_theme_file_path( 'assets/js/author-photo.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
 	wp_enqueue_script(
 		'kompas-author-photo',
 		get_theme_file_uri( 'assets/js/author-photo.js' ),
 		array( 'jquery' ),
-		KOMPAS_VERSION,
+		$ver,
 		true
 	);
 }
@@ -1232,11 +1261,16 @@ function kompas_enqueue_category_hero_script( $hook ) {
 	if ( ! $screen || 'category' !== $screen->taxonomy ) {
 		return;
 	}
+	$path = get_theme_file_path( 'assets/js/category-hero.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
 	wp_enqueue_script(
 		'kompas-category-hero',
 		get_theme_file_uri( 'assets/js/category-hero.js' ),
 		array(),
-		KOMPAS_VERSION,
+		$ver,
 		true
 	);
 	wp_localize_script( 'kompas-category-hero', 'kompasHeroData', array(
@@ -1400,6 +1434,11 @@ function kompas_featured_image_caption( $block_content, $block, $instance ) {
 	}
 
 	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	// Samo za glavni post, ne za slike u povezanim vestima.
+	if ( $post_id !== (int) get_queried_object_id() ) {
 		return $block_content;
 	}
 
