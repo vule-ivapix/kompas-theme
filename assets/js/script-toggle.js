@@ -1,4 +1,24 @@
 ( function() {
+	// Skip entirely in editor iframes (Site Editor / Post Editor preview canvas).
+	try {
+		if ( window.top && window.top !== window && window.top.location ) {
+			var topPath = window.top.location.pathname || '';
+			if ( /\/wp-admin\/(site-editor\.php|post\.php|post-new\.php)/.test( topPath ) ) {
+				return;
+			}
+		}
+	} catch ( e ) {}
+
+	// Never run transliteration logic inside Gutenberg editors/canvases.
+	// It can interfere with editor-controlled date formatting UI/state.
+	if ( document.body && (
+		document.body.classList.contains( 'block-editor-page' ) ||
+		document.body.classList.contains( 'editor-styles-wrapper' ) ||
+		document.body.classList.contains( 'block-editor-iframe__body' )
+	) ) {
+		return;
+	}
+
 	// Serbian Cyrillic → Latin mapping.
 	var cyrToLat = {
 		'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Ђ':'Đ','Е':'E','Ж':'Ž','З':'Z','И':'I',
@@ -56,11 +76,76 @@
 		return result;
 	}
 
+	function escapeRegExp( str ) {
+		return str.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
+	}
+
+	function getNoTranslateWordsForNode( node ) {
+		var words = [];
+		var el = node && node.nodeType === 1 ? node : ( node ? node.parentElement : null );
+		var globalWords = window.kompasScriptToggleData && Array.isArray( window.kompasScriptToggleData.globalNoTranslateWords )
+			? window.kompasScriptToggleData.globalNoTranslateWords
+			: [];
+
+		globalWords.forEach( function( word ) {
+			var cleaned = String( word || '' ).trim();
+			if ( cleaned && words.indexOf( cleaned ) === -1 ) {
+				words.push( cleaned );
+			}
+		} );
+
+		while ( el ) {
+			if ( el.hasAttribute && el.hasAttribute( 'data-kompas-no-translate-words' ) ) {
+				var raw = el.getAttribute( 'data-kompas-no-translate-words' ) || '';
+				raw.split( '||' ).forEach( function( word ) {
+					var cleaned = word.trim();
+					if ( cleaned && words.indexOf( cleaned ) === -1 ) {
+						words.push( cleaned );
+					}
+				} );
+			}
+			el = el.parentElement;
+		}
+
+		return words;
+	}
+
+	function convertKeepingWords( text, converter, words ) {
+		var working = String( text );
+		var kept = [];
+
+		if ( ! words || ! words.length ) {
+			return converter( working );
+		}
+
+		words.forEach( function( word, idx ) {
+			var re;
+			if ( ! word ) {
+				return;
+			}
+			re = new RegExp( escapeRegExp( word ), 'gi' );
+			working = working.replace( re, function( match ) {
+				var token = '~~' + idx + '_' + kept.length + '~~';
+				kept.push( { token: token, value: match } );
+				return token;
+			} );
+		} );
+
+		working = converter( working );
+
+		kept.forEach( function( item ) {
+			working = working.split( item.token ).join( item.value );
+		} );
+
+		return working;
+	}
+
 	// Walk text nodes and convert.
 	function walkTextNodes( node, converter ) {
 		if ( node.nodeType === 3 ) {
 			// Text node.
-			var converted = converter( node.nodeValue );
+			var protectedWords = getNoTranslateWordsForNode( node );
+			var converted = convertKeepingWords( node.nodeValue, converter, protectedWords );
 			if ( converted !== node.nodeValue ) {
 				node.nodeValue = converted;
 			}
@@ -73,8 +158,15 @@
 			return;
 		}
 
-		// Skip elements marked as "ne prevodi" – ostaju u originalnom pismu.
-		if ( node.nodeType === 1 && node.classList && node.classList.contains( 'kompas-neprevedi' ) ) {
+		// Skip elements that must stay exactly as authored (no script conversion):
+		// - explicit "ne prevodi" marks
+		// - author-name outputs across templates/blocks.
+		if ( node.nodeType === 1 && node.classList && (
+			node.classList.contains( 'kompas-neprevedi' ) ||
+			node.classList.contains( 'wp-block-post-author-name' ) ||
+			node.classList.contains( 'wp-block-post-author__name' ) ||
+			node.classList.contains( 'kompas-kolumne__name' )
+		) ) {
 			return;
 		}
 

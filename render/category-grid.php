@@ -95,9 +95,9 @@ foreach ( $selected as $cat_id ) :
 					 class="kompas-catgrid__img" />
 			</a>
 			<?php endif; ?>
-			<h3 class="kompas-catgrid__post-title kompas-catgrid__post-title--lg">
-				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
-			</h3>
+				<h3 class="kompas-catgrid__post-title kompas-catgrid__post-title--lg"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+				</h3>
 			<p class="kompas-catgrid__excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $p ), 25 ) ); ?></p>
 		</div>
 		<?php endforeach; ?>
@@ -115,9 +115,9 @@ foreach ( $selected as $cat_id ) :
 					 class="kompas-catgrid__img" />
 			</a>
 			<?php endif; ?>
-			<h4 class="kompas-catgrid__post-title kompas-catgrid__post-title--sm">
-				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
-			</h4>
+				<h4 class="kompas-catgrid__post-title kompas-catgrid__post-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( get_the_title( $p ) ); ?></a>
+				</h4>
 		</div>
 		<?php endforeach; ?>
 	</div>

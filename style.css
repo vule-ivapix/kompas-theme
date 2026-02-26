@@ -4,7 +4,7 @@ Theme URI: https://kompas.rs
 Author: Vukašin Rančić
 Author URI: https://kompas.rs
 Description: Nativna WordPress Block tema za Srpski Nedeljnik Kompas. Full Site Editing (FSE) tema bez eksternih zavisnosti.
-Version: 1.0.1
+Version: 1.0.4
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 8.0
@@ -189,6 +189,7 @@ img {
 	display: flex;
 	flex-direction: column;
 	border-left: 1px solid var(--wp--preset--color--border);
+	overflow: visible;
 }
 
 /* Top row: categories ... search */
@@ -196,6 +197,7 @@ img {
 	flex: 1.25 1 0;
 	min-height: 52px;
 	border-bottom: 1px solid var(--wp--preset--color--border);
+	overflow: visible;
 }
 
 /* Bottom row: tags ... cir/lat */
@@ -213,8 +215,84 @@ img {
 	flex-wrap: nowrap;
 	gap: clamp(0.5rem, 1.5vw, 2rem);
 	align-items: center;
-	overflow: hidden;
+	overflow: visible;
 	min-width: 0;
+}
+
+/* WP nav menu reset */
+.kompas-header-categories .kompas-nav-menu,
+.kompas-header-tags .kompas-nav-menu {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: inherit;
+	align-items: center;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.kompas-header-categories .kompas-nav-menu li,
+.kompas-header-tags .kompas-nav-menu li {
+	position: relative;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.kompas-header-categories .kompas-nav-menu a,
+.kompas-header-tags .kompas-nav-menu a {
+	display: block;
+	font-size: clamp(0.7rem, 1vw, 0.9375rem);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--wp--preset--color--dark);
+	text-decoration: none;
+	white-space: nowrap;
+	font-family: var(--wp--preset--font-family--montserrat);
+	transition: color 0.15s;
+}
+
+.kompas-header-categories .kompas-nav-menu a:hover,
+.kompas-header-categories .kompas-nav-menu .current-menu-item > a,
+.kompas-header-categories .kompas-nav-menu .current-menu-ancestor > a {
+	color: var(--wp--preset--color--primary);
+}
+
+/* Dropdown sub-menu */
+.kompas-header-categories .kompas-nav-menu .sub-menu {
+	display: none;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	background: #fff;
+	border-top: 2px solid var(--wp--preset--color--primary);
+	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+	min-width: 180px;
+	z-index: 9999;
+	flex-direction: column;
+	gap: 0;
+	padding: 0.25rem 0;
+	list-style: none;
+	margin: 0;
+}
+
+.kompas-header-categories .kompas-nav-menu li:hover > .sub-menu,
+.kompas-header-categories .kompas-nav-menu li:focus-within > .sub-menu {
+	display: flex;
+}
+
+.kompas-header-categories .kompas-nav-menu .sub-menu a {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	white-space: nowrap;
+	padding: 0.5rem 1rem;
+	color: var(--wp--preset--color--dark);
+}
+
+.kompas-header-categories .kompas-nav-menu .sub-menu a:hover {
+	color: var(--wp--preset--color--primary);
+	background: #f7f7f7;
 }
 
 .kompas-header-link {
@@ -874,7 +952,6 @@ body.kompas-mobile-menu-open {
 }
 
 .kompas-banner--square .kompas-banner__image {
-	aspect-ratio: 1 / 1;
 	object-fit: cover;
 }
 
@@ -1139,6 +1216,51 @@ body.kompas-mobile-menu-open {
 }
 
 /* Editor-only fixes: keep desktop-like previews in narrow editor iframe. */
+.editor-styles-wrapper .kompas-mobile-nav,
+.block-editor-iframe__body .kompas-mobile-nav {
+	display: none !important;
+}
+
+.editor-styles-wrapper .kompas-header-row.wp-block-columns,
+.block-editor-iframe__body .kompas-header-row.wp-block-columns {
+	display: flex !important;
+	flex-wrap: nowrap !important;
+	min-width: 1080px;
+}
+
+.editor-styles-wrapper .kompas-header,
+.block-editor-iframe__body .kompas-header,
+.editor-styles-wrapper .kompas-header-kolumne,
+.block-editor-iframe__body .kompas-header-kolumne {
+	min-width: 1080px;
+	overflow-x: auto;
+}
+
+.editor-styles-wrapper .kompas-header-row.wp-block-columns > .wp-block-column.kompas-logo-col,
+.block-editor-iframe__body .kompas-header-row.wp-block-columns > .wp-block-column.kompas-logo-col {
+	flex: 0 0 18% !important;
+	max-width: 18% !important;
+}
+
+.editor-styles-wrapper .kompas-header-row.wp-block-columns > .wp-block-column.kompas-nav-col,
+.block-editor-iframe__body .kompas-header-row.wp-block-columns > .wp-block-column.kompas-nav-col {
+	flex: 0 0 82% !important;
+	max-width: 82% !important;
+}
+
+.editor-styles-wrapper .kompas-header-top-row,
+.block-editor-iframe__body .kompas-header-top-row,
+.editor-styles-wrapper .kompas-header-bottom-row,
+.block-editor-iframe__body .kompas-header-bottom-row {
+	padding-right: var(--wp--preset--spacing--50) !important;
+	padding-left: var(--wp--preset--spacing--50) !important;
+}
+
+.editor-styles-wrapper .kompas-header-kolumne__desktop,
+.block-editor-iframe__body .kompas-header-kolumne__desktop {
+	display: block !important;
+}
+
 .editor-styles-wrapper .kompas-related-posts-query .wp-block-post-template {
 	display: grid !important;
 	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -2158,6 +2280,14 @@ body.kompas-mobile-menu-open {
 	margin: 0.5rem 0 0;
 	padding: 0;
 	line-height: 1.4;
+}
+
+.kompas-image-source {
+	font-size: 0.6875rem;
+	color: #888;
+	text-align: right;
+	margin: 4px 0 0;
+	font-style: italic;
 }
 
 /* ========================================================================

@@ -13,6 +13,27 @@
 	var MediaUploadCheck    = blockEditor.MediaUploadCheck;
 
 	/**
+	 * Fetch all taxonomy terms across REST pages (WP REST max per_page is 100).
+	 */
+	function fetchAllTerms( restBase, page, acc ) {
+		var currentPage = page || 1;
+		var collected   = acc || [];
+		var path        = '/wp/v2/' + restBase + '?per_page=100&hide_empty=false&orderby=name&order=asc&page=' + currentPage;
+
+		return apiFetch( { path: path, parse: false } )
+			.then( function( response ) {
+				var totalPages = parseInt( response.headers.get( 'X-WP-TotalPages' ) || '1', 10 );
+				return response.json().then( function( data ) {
+					var merged = collected.concat( Array.isArray( data ) ? data : [] );
+					if ( currentPage < totalPages ) {
+						return fetchAllTerms( restBase, currentPage + 1, merged );
+					}
+					return merged;
+				} );
+			} );
+	}
+
+	/**
 	 * TermPicker: renders checkboxes for a taxonomy in InspectorControls.
 	 */
 	function TermPicker( props ) {
@@ -30,7 +51,7 @@
 		var setLoading = loading[1];
 
 		useEffect( function() {
-			apiFetch( { path: '/wp/v2/' + restBase + '?per_page=100&hide_empty=false&orderby=name&order=asc' } )
+			fetchAllTerms( restBase )
 				.then( function( data ) {
 					setTerms( data );
 					setLoading( false );
@@ -80,6 +101,12 @@
 		var onChange    = props.onChange;
 		var restBase    = props.restBase;
 		var label       = props.label;
+		var dragState   = useState( null );
+		var overState   = useState( null );
+		var dragIndex   = dragState[0];
+		var setDragIndex = dragState[1];
+		var overIndex   = overState[0];
+		var setOverIndex = overState[1];
 
 		var termsState = useState( [] );
 		var loadState  = useState( true );
@@ -89,8 +116,11 @@
 		var setLoading = loadState[1];
 
 		useEffect( function() {
-			apiFetch( { path: '/wp/v2/' + restBase + '?per_page=100&hide_empty=false&orderby=name&order=asc' } )
-				.then( function( data ) { setTerms( data ); setLoading( false ); } )
+			fetchAllTerms( restBase )
+				.then( function( data ) {
+					setTerms( data );
+					setLoading( false );
+				} )
 				.catch( function() { setLoading( false ); } );
 		}, [ restBase ] );
 
@@ -102,14 +132,63 @@
 		var termMap = {};
 		termList.forEach( function( t ) { termMap[ t.id ] = t; } );
 
-		function move( idx, dir ) {
+		function moveTo( from, to ) {
 			var next = selectedIds.slice();
-			var to   = idx + dir;
 			if ( to < 0 || to >= next.length ) { return; }
-			var tmp    = next[ idx ];
-			next[ idx ] = next[ to ];
-			next[ to ]  = tmp;
+			if ( from === to ) { return; }
+			var moved = next.splice( from, 1 )[0];
+			next.splice( to, 0, moved );
 			onChange( next );
+		}
+
+		function move( idx, dir ) {
+			moveTo( idx, idx + dir );
+		}
+
+		function onRowDragStart( idx, e ) {
+			setDragIndex( idx );
+			setOverIndex( idx );
+			if ( e.dataTransfer ) {
+				e.dataTransfer.effectAllowed = 'move';
+				try {
+					e.dataTransfer.setData( 'text/plain', String( idx ) );
+				} catch ( err ) {}
+			}
+		}
+
+		function onRowDragOver( idx, e ) {
+			e.preventDefault();
+			if ( e.dataTransfer ) {
+				e.dataTransfer.dropEffect = 'move';
+			}
+			if ( overIndex !== idx ) {
+				setOverIndex( idx );
+			}
+		}
+
+		function onRowDrop( idx, e ) {
+			e.preventDefault();
+			var from = dragIndex;
+			if ( null === from && e.dataTransfer ) {
+				var raw = parseInt( e.dataTransfer.getData( 'text/plain' ), 10 );
+				if ( ! isNaN( raw ) ) {
+					from = raw;
+				}
+			}
+
+			setDragIndex( null );
+			setOverIndex( null );
+
+			if ( null === from || isNaN( from ) ) {
+				return;
+			}
+
+			moveTo( from, idx );
+		}
+
+		function onRowDragEnd() {
+			setDragIndex( null );
+			setOverIndex( null );
 		}
 
 		function remove( id ) {
@@ -160,19 +239,53 @@
 			marginLeft: 'auto',
 			background: '#fff5f5',
 		} );
+		var dragHandle = {
+			cursor: 'grab',
+			fontSize: '12px',
+			color: '#666',
+			padding: '0 3px',
+			userSelect: 'none',
+			lineHeight: '1',
+		};
 
 		return el( PanelBody, { title: label, initialOpen: true },
 
 			/* ── Selected items in chosen order ── */
 			el( 'p', { style: sectionLabel }, 'Redosled (' + selectedIds.length + ' izabrano)' ),
+			selectedIds.length > 1 && el(
+				'p',
+				{ style: { fontSize: '11px', color: '#757575', margin: '0 0 8px' } },
+				'Prevuci stavke mišem (drag & drop) za redosled.'
+			),
 
 			selectedIds.length === 0
 				? el( 'p', { style: { fontSize: '12px', color: '#aaa', marginBottom: '12px' } }, 'Nije izabrana nijedna stavka.' )
 				: el( 'div', { style: { marginBottom: '14px' } },
 					selectedIds.map( function( id, idx ) {
 						var term = termMap[ id ];
+						var currentRowStyle;
 						if ( ! term ) { return null; }
-						return el( 'div', { key: id, style: rowStyle },
+						currentRowStyle = Object.assign(
+							{},
+							rowStyle,
+							dragIndex === idx ? { opacity: 0.55 } : {},
+							overIndex === idx && dragIndex !== null && dragIndex !== idx ? {
+								outline: '1px dashed #e82d34',
+								outlineOffset: '1px',
+								background: '#fff',
+							} : {}
+						);
+						return el( 'div', {
+							key: id,
+							style: currentRowStyle,
+							draggable: true,
+							onDragStart: function( e ) { onRowDragStart( idx, e ); },
+							onDragEnter: function() { setOverIndex( idx ); },
+							onDragOver: function( e ) { onRowDragOver( idx, e ); },
+							onDrop: function( e ) { onRowDrop( idx, e ); },
+							onDragEnd: onRowDragEnd,
+						},
+							el( 'span', { style: dragHandle, title: 'Prevuci za redosled', 'aria-hidden': true }, '⋮⋮' ),
 							el( 'button', {
 								style:    Object.assign( {}, btn, { opacity: idx === 0 ? 0.3 : 1 } ),
 								disabled: idx === 0,
@@ -250,7 +363,7 @@
 
 	/* ── Header Tags ─────────────────────────────────────────── */
 	blocks.registerBlockType( 'kompas/header-tags', {
-		edit: makeEdit( 'kompas/header-tags', 'tags', 'Tagovi za navigaciju' ),
+		edit: makeEdit( 'kompas/header-tags', 'tags', 'Tagovi za navigaciju', true ),
 		save: function() { return null; },
 	} );
 
@@ -670,6 +783,47 @@
 						color: '#777',
 					},
 				}, 'Mobile navigacija (vidljiva samo na mobilnom)' )
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	/* ── Povezane vesti ──────────────────────────────────────── */
+	blocks.registerBlockType( 'kompas/related-posts', {
+		edit: function( props ) {
+			var blockProps  = useBlockProps();
+			var title       = typeof props.attributes.title === 'string' ? props.attributes.title : 'ПОВЕЗАНЕ ВЕСТИ';
+			var postsToShow = Math.max( 1, parseInt( props.attributes.postsToShow, 10 ) || 4 );
+			var TextControl = components.TextControl;
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Povezane vesti', initialOpen: true },
+						el( TextControl, {
+							label: 'Naslov sekcije',
+							value: title,
+							onChange: function( v ) {
+								props.setAttributes( { title: v } );
+							},
+						} ),
+						el( RangeControl, {
+							label: 'Broj vesti',
+							value: postsToShow,
+							min: 1,
+							max: 12,
+							onChange: function( v ) {
+								props.setAttributes( { postsToShow: Math.max( 1, parseInt( v, 10 ) || 4 ) } );
+							},
+						} )
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/related-posts',
+						attributes: props.attributes,
+					} )
+				)
 			);
 		},
 		save: function() { return null; },

@@ -65,18 +65,18 @@
 		return url.replace( /-\d+x\d+(\.[a-z]+(?:\?.*)?$)/i, '$1' );
 	}
 
-	// Attach handlers to images.
-	var selectors = [
-		'.wp-block-post-featured-image img',
-		'.wp-block-post-content figure img',
-		'.wp-block-post-content .wp-block-image img'
-	];
+	function isInRelatedPosts( img ) {
+		return !! img.closest( '.kompas-related-posts-query' );
+	}
 
-	document.querySelectorAll( selectors.join( ', ' ) ).forEach( function ( img ) {
-		// If image has data-full attribute (set by PHP), use it; otherwise derive from src.
+	function bindImage( img ) {
+		if ( ! img || isInRelatedPosts( img ) ) {
+			return;
+		}
+
 		var anchor = img.closest( 'a' );
 		var fullSrc = img.getAttribute( 'data-full' ) ||
-		              ( anchor ? anchor.href : getFullUrl( img.src ) );
+			( anchor ? anchor.href : getFullUrl( img.src ) );
 
 		img.style.cursor = 'zoom-in';
 
@@ -90,5 +90,17 @@
 		} else {
 			img.addEventListener( 'click', handler );
 		}
-	} );
+	}
+
+	// Featured image on current single post only (exclude related/query loop items).
+	var featured = Array.prototype.find.call(
+		document.querySelectorAll( '.wp-block-post-featured-image img' ),
+		function ( img ) {
+			return ! isInRelatedPosts( img ) && ! img.closest( '.wp-block-post-template' );
+		}
+	);
+	bindImage( featured );
+
+	// All images inside the current post content.
+	document.querySelectorAll( '.wp-block-post-content img' ).forEach( bindImage );
 }() );

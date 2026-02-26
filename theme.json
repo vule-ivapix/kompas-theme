@@ -39,70 +39,12 @@
         {
           "name": "Montserrat",
           "slug": "montserrat",
-          "fontFamily": "'Montserrat', sans-serif",
-          "fontFace": [
-            {
-              "fontFamily": "Montserrat",
-              "fontWeight": "400",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2"]
-            },
-            {
-              "fontFamily": "Montserrat",
-              "fontWeight": "500",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtZ6Hw5aXo.woff2"]
-            },
-            {
-              "fontFamily": "Montserrat",
-              "fontWeight": "600",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu170w5aXo.woff2"]
-            },
-            {
-              "fontFamily": "Montserrat",
-              "fontWeight": "700",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w5aXo.woff2"]
-            },
-            {
-              "fontFamily": "Montserrat",
-              "fontWeight": "800",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr70w5aXo.woff2"]
-            }
-          ]
+          "fontFamily": "'Montserrat', sans-serif"
         },
         {
           "name": "Source Serif 4",
           "slug": "source-serif-4",
-          "fontFamily": "'Source Serif 4', Georgia, serif",
-          "fontFace": [
-            {
-              "fontFamily": "Source Serif 4",
-              "fontWeight": "400",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
-            },
-            {
-              "fontFamily": "Source Serif 4",
-              "fontWeight": "600",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
-            },
-            {
-              "fontFamily": "Source Serif 4",
-              "fontWeight": "700",
-              "fontStyle": "normal",
-              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf64.woff2"]
-            },
-            {
-              "fontFamily": "Source Serif 4",
-              "fontWeight": "400",
-              "fontStyle": "italic",
-              "src": ["https://fonts.gstatic.com/s/sourceserif4/v8/vEF02_tTDB4M7-auWDN0ahZJW1ge6NmXpVAHV8aB_GvuzXhE.woff2"]
-            }
-          ]
+          "fontFamily": "'Source Serif 4', Georgia, serif"
         }
       ],
       "fontSizes": [

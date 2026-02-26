@@ -60,7 +60,7 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 					 style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
-			<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0">
+			<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
 				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 			</h3>
 		</div>
@@ -80,7 +80,7 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 					 style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block" />
 			</a>
 			<?php endif; ?>
-			<h2 style="font-size:2rem;font-weight:700;line-height:1.2;margin:0">
+			<h2 style="font-size:2rem;font-weight:700;line-height:1.2;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( $main_post->ID ); ?>>
 				<a href="<?php echo esc_url( get_permalink( $main_post ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $main_post ) ) ); ?></a>
 			</h2>
 		</div>
@@ -97,7 +97,7 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 			</a>
 			<?php endif; ?>
 			<div style="flex:1 1 auto">
-				<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0">
+				<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
 					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 				</h3>
 			</div>
