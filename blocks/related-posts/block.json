@@ -17,6 +17,10 @@
 		"postsToShow": {
 			"type": "number",
 			"default": 4
+		},
+		"selectedPostIds": {
+			"type": "array",
+			"default": []
 		}
 	},
 	"usesContext": ["postId"],

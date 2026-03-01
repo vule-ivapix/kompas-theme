@@ -16,7 +16,7 @@
 		},
 		"title": {
 			"type": "string",
-			"default": "РЕЧ ГЛАВНОГ УРЕДНИКА"
+			"default": "РЕЧ УРЕДНИКА"
 		},
 		"linkText": {
 			"type": "string",

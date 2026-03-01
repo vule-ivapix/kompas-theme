@@ -101,12 +101,17 @@
 		var onChange    = props.onChange;
 		var restBase    = props.restBase;
 		var label       = props.label;
+		var searchable  = !! props.searchable;
+		var searchPlaceholder = props.searchPlaceholder || 'Pretraži...';
 		var dragState   = useState( null );
 		var overState   = useState( null );
 		var dragIndex   = dragState[0];
 		var setDragIndex = dragState[1];
 		var overIndex   = overState[0];
 		var setOverIndex = overState[1];
+		var searchState = useState( '' );
+		var search      = searchState[0];
+		var setSearch   = searchState[1];
 
 		var termsState = useState( [] );
 		var loadState  = useState( true );
@@ -204,6 +209,13 @@
 		var unselected = termList.filter( function( t ) {
 			return selectedIds.indexOf( t.id ) === -1;
 		} );
+		var searchQuery = String( search || '' ).trim().toLowerCase();
+		var filteredUnselected = unselected.filter( function( term ) {
+			if ( ! searchable || '' === searchQuery ) {
+				return true;
+			}
+			return String( term.name || '' ).toLowerCase().indexOf( searchQuery ) !== -1;
+		} );
 
 		var sectionLabel = {
 			margin: '0 0 5px',
@@ -246,6 +258,13 @@
 			padding: '0 3px',
 			userSelect: 'none',
 			lineHeight: '1',
+		};
+		var dropdownList = {
+			border: '1px solid #ddd',
+			borderRadius: '4px',
+			maxHeight: '220px',
+			overflowY: 'auto',
+			background: '#fff',
 		};
 
 		return el( PanelBody, { title: label, initialOpen: true },
@@ -311,14 +330,45 @@
 			/* ── Unselected items to add ── */
 			unselected.length > 0 && el( 'div', null,
 				el( 'p', { style: sectionLabel }, 'Dodaj' ),
-				unselected.map( function( term ) {
-					return el( CheckboxControl, {
-						key:      term.id,
-						label:    term.name + ( term.count ? ' (' + term.count + ')' : '' ),
-						checked:  false,
-						onChange: function( checked ) { if ( checked ) { add( term.id ); } },
-					} );
-				} )
+				searchable && el( components.SearchControl, {
+					value: search,
+					onChange: setSearch,
+					placeholder: searchPlaceholder,
+				} ),
+				searchable
+					? (
+						filteredUnselected.length > 0
+							? el( 'div', { style: dropdownList },
+								filteredUnselected.map( function( term ) {
+									return el( components.Button, {
+										key: term.id,
+										onClick: function() { add( term.id ); },
+										style: {
+											display: 'block',
+											width: '100%',
+											textAlign: 'left',
+											padding: '8px 10px',
+											fontSize: '12px',
+											borderBottom: '1px solid #f0f0f0',
+											cursor: 'pointer',
+											borderRadius: 0,
+											height: 'auto',
+										},
+									},
+									term.name + ( term.count ? ' (' + term.count + ')' : '' )
+									);
+								} )
+							)
+							: el( 'p', { style: { fontSize: '12px', color: '#757575', margin: '8px 0 0' } }, 'Nema rezultata.' )
+					)
+					: filteredUnselected.map( function( term ) {
+						return el( CheckboxControl, {
+							key:      term.id,
+							label:    term.name + ( term.count ? ' (' + term.count + ')' : '' ),
+							checked:  false,
+							onChange: function( checked ) { if ( checked ) { add( term.id ); } },
+						} );
+					} )
 			)
 		);
 	}
@@ -327,22 +377,23 @@
 	 * Factory: creates an edit component with a sortable or plain TermPicker + SSR preview.
 	 * Pass sortable:true for drag-to-reorder support.
 	 */
-	function makeEdit( blockName, restBase, pickerLabel, sortable ) {
+	function makeEdit( blockName, restBase, pickerLabel, sortable, pickerOptions ) {
 		return function( props ) {
 			var blockProps  = useBlockProps();
 			var selectedIds = props.attributes.selectedIds || [];
 			var Picker      = sortable ? SortableTermPicker : TermPicker;
+			var extraPickerOptions = pickerOptions || {};
 
 			return el( element.Fragment, null,
 				el( InspectorControls, null,
-					el( Picker, {
+					el( Picker, Object.assign( {}, extraPickerOptions, {
 						selectedIds: selectedIds,
 						restBase:    restBase,
 						label:       pickerLabel,
 						onChange:    function( next ) {
 							props.setAttributes( { selectedIds: next } );
 						},
-					} )
+					} ) )
 				),
 				el( 'div', blockProps,
 					el( SSR, {
@@ -363,7 +414,16 @@
 
 	/* ── Header Tags ─────────────────────────────────────────── */
 	blocks.registerBlockType( 'kompas/header-tags', {
-		edit: makeEdit( 'kompas/header-tags', 'tags', 'Tagovi za navigaciju', true ),
+		edit: makeEdit(
+			'kompas/header-tags',
+			'tags',
+			'Tagovi za navigaciju',
+			true,
+			{
+				searchable: true,
+				searchPlaceholder: 'Pretraži sve tagove...',
+			}
+		),
 		save: function() { return null; },
 	} );
 
@@ -432,65 +492,122 @@
 
 			/* ── Tabs Najnovije / Najčitanije ─────────────────────────── */
 			blocks.registerBlockType( 'kompas/tabs-najnovije-najcitanije', {
-			edit: function( props ) {
-				var blockProps = useBlockProps();
-				var count = props.attributes.count || 6;
-				var najnovijePostIds = props.attributes.najnovijePostIds || [];
-				var najcitanijePostIds = props.attributes.najcitanijePostIds || [];
+		edit: function( props ) {
+			var blockProps = useBlockProps();
+			var count = props.attributes.count || 6;
+			var najnovijePostIds = props.attributes.najnovijePostIds || [];
+			var najcitanijePostIds = props.attributes.najcitanijePostIds || [];
+			var najnovijeUrl = props.attributes.najnovijeUrl || '';
+			var najcitanijeUrl = props.attributes.najcitanijeUrl || '';
+			var TabTextControl = components.TextControl;
 
-				return el( element.Fragment, null,
-					el( InspectorControls, null,
-						el( PanelBody, { title: 'Podešavanje tabova', initialOpen: true },
-							el( RangeControl, {
-								label: 'Broj postova po tabu',
-								value: count,
-								min: 1,
-								max: 12,
-								onChange: function( v ) {
-									var nextCount = parseInt( v, 10 ) || 1;
-									props.setAttributes( {
-										count: nextCount,
-										najnovijePostIds: najnovijePostIds.slice( 0, nextCount ),
-										najcitanijePostIds: najcitanijePostIds.slice( 0, nextCount ),
-									} );
-								},
-							} ),
-							el( HeroPostPicker, {
-								title: 'Najnovije (ručni izbor)',
-								selectedIds: najnovijePostIds,
-								max: count,
-								onChange: function( next ) {
-									props.setAttributes( { najnovijePostIds: next } );
-								},
-							} ),
-							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-								'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
-							),
-							el( HeroPostPicker, {
-								title: 'Najčitanije (ručni izbor)',
-								selectedIds: najcitanijePostIds,
-								max: count,
-								onChange: function( next ) {
-									props.setAttributes( { najcitanijePostIds: next } );
-								},
-							} ),
-							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-								'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
-							)
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Podešavanje tabova', initialOpen: true },
+						el( RangeControl, {
+							label: 'Broj postova po tabu',
+							value: count,
+							min: 1,
+							max: 12,
+							onChange: function( v ) {
+								var nextCount = parseInt( v, 10 ) || 1;
+								props.setAttributes( {
+									count: nextCount,
+									najnovijePostIds: najnovijePostIds.slice( 0, nextCount ),
+									najcitanijePostIds: najcitanijePostIds.slice( 0, nextCount ),
+								} );
+							},
+						} ),
+						el( TabTextControl, {
+							label: 'URL arhive "Najnovije"',
+							value: najnovijeUrl,
+							placeholder: 'https://...',
+							onChange: function( v ) { props.setAttributes( { najnovijeUrl: v } ); },
+						} ),
+						el( TabTextControl, {
+							label: 'URL arhive "Najčitanije"',
+							value: najcitanijeUrl,
+							placeholder: 'https://...',
+							onChange: function( v ) { props.setAttributes( { najcitanijeUrl: v } ); },
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '4px', marginBottom: '12px' } },
+							'Kad su URL-ovi popunjeni, tab dugmad postaju linkovi ka arhivskim stranicama.'
+						),
+						el( HeroPostPicker, {
+							title: 'Najnovije (ručni izbor)',
+							selectedIds: najnovijePostIds,
+							max: count,
+							onChange: function( next ) {
+								props.setAttributes( { najnovijePostIds: next } );
+							},
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+							'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
+						),
+						el( HeroPostPicker, {
+							title: 'Najčitanije (ručni izbor)',
+							selectedIds: najcitanijePostIds,
+							max: count,
+							onChange: function( next ) {
+								props.setAttributes( { najcitanijePostIds: next } );
+							},
+						} ),
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+							'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
 						)
-					),
-					el( 'div', blockProps,
-						el( SSR, {
-							key:        JSON.stringify( props.attributes ),
-							block:      'kompas/tabs-najnovije-najcitanije',
-							attributes: props.attributes,
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/tabs-najnovije-najcitanije',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	/* ── Post List (arhiva) ──────────────────────────────────── */
+	blocks.registerBlockType( 'kompas/post-list', {
+		edit: function( props ) {
+			var blockProps    = useBlockProps();
+			var orderby       = props.attributes.orderby || 'date';
+			var postsPerPage  = props.attributes.postsPerPage || 12;
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Post List', initialOpen: true },
+						el( SelectControl, {
+							label: 'Sortiranje',
+							value: orderby,
+							options: [
+								{ label: 'Po datumu (najnovije)', value: 'date' },
+								{ label: 'Po pregledima (najčitanije)', value: 'views' },
+							],
+							onChange: function( v ) { props.setAttributes( { orderby: v } ); },
+						} ),
+						el( RangeControl, {
+							label: 'Postova po stranici',
+							value: postsPerPage,
+							min: 4,
+							max: 24,
+							onChange: function( v ) { props.setAttributes( { postsPerPage: parseInt( v, 10 ) || 12 } ); },
 						} )
 					)
-				);
-			},
-			save: function() { return null; },
-		} );
-
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/post-list',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
 	/* ── PostPicker: search & select posts (array of IDs) ────── */
 	var SearchControl = components.SearchControl;
 	var Button        = components.Button;
@@ -794,6 +911,7 @@
 			var blockProps  = useBlockProps();
 			var title       = typeof props.attributes.title === 'string' ? props.attributes.title : 'ПОВЕЗАНЕ ВЕСТИ';
 			var postsToShow = Math.max( 1, parseInt( props.attributes.postsToShow, 10 ) || 4 );
+			var selectedPostIds = Array.isArray( props.attributes.selectedPostIds ) ? props.attributes.selectedPostIds : [];
 			var TextControl = components.TextControl;
 
 			return el( element.Fragment, null,
@@ -806,17 +924,33 @@
 								props.setAttributes( { title: v } );
 							},
 						} ),
-						el( RangeControl, {
-							label: 'Broj vesti',
-							value: postsToShow,
-							min: 1,
-							max: 12,
-							onChange: function( v ) {
-								props.setAttributes( { postsToShow: Math.max( 1, parseInt( v, 10 ) || 4 ) } );
-							},
-						} )
-					)
-				),
+							el( RangeControl, {
+								label: 'Broj vesti',
+								value: postsToShow,
+								min: 1,
+								max: 12,
+								onChange: function( v ) {
+									var nextCount = Math.max( 1, parseInt( v, 10 ) || 4 );
+									props.setAttributes( {
+										postsToShow: nextCount,
+										selectedPostIds: selectedPostIds.slice( 0, nextCount ),
+									} );
+								},
+							} ),
+							el( HeroPostPicker, {
+								title: 'Ručno izabrani postovi',
+								selectedIds: selectedPostIds,
+								max: postsToShow,
+								searchPlaceholder: 'Pretraži postove za povezane vesti...',
+								onChange: function( next ) {
+									props.setAttributes( { selectedPostIds: next } );
+								},
+							} ),
+							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
+								'Ako ne izabereš postove, prikazuju se najnovije vesti.'
+							)
+						)
+					),
 				el( 'div', blockProps,
 					el( SSR, {
 						key:        JSON.stringify( props.attributes ),
@@ -1051,6 +1185,72 @@
 							? 'Hero: ' + heroPostIds.length + ' postova izabrano'
 							: 'Hero: nije izabran nijedan post'
 					)
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	blocks.registerBlockType( 'kompas/video', {
+		edit: function( props ) {
+			var blockProps = useBlockProps();
+			var count      = props.attributes.count || 3;
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Podešavanja', initialOpen: true },
+						el( RangeControl, {
+							label:    'Broj videa',
+							value:    count,
+							min:      1,
+							max:      6,
+							onChange: function( val ) { props.setAttributes( { count: val } ); },
+						} )
+					)
+				),
+				el( 'div', blockProps,
+					el( 'div', {
+						style: {
+							padding: '1.5rem',
+							background: '#f5f5f5',
+							border: '1px dashed #ccc',
+							textAlign: 'center',
+							fontSize: '0.875rem',
+							color: '#777',
+						},
+					}, 'КОМПАС ВИДЕО — ' + count + ' ' + ( count === 1 ? 'video' : 'videa' ) )
+				)
+			);
+		},
+		save: function() { return null; },
+	} );
+
+	blocks.registerBlockType( 'kompas/video-grid', {
+		edit: function( props ) {
+			var blockProps   = useBlockProps();
+			var perPage      = props.attributes.postsPerPage || 12;
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Podešavanja', initialOpen: true },
+						el( RangeControl, {
+							label:    'Videa po stranici',
+							value:    perPage,
+							min:      3,
+							max:      24,
+							onChange: function( val ) { props.setAttributes( { postsPerPage: val } ); },
+						} )
+					)
+				),
+				el( 'div', blockProps,
+					el( 'div', {
+						style: {
+							padding: '1.5rem',
+							background: '#f5f5f5',
+							border: '1px dashed #ccc',
+							textAlign: 'center',
+							fontSize: '0.875rem',
+							color: '#777',
+						},
+					}, 'КОМПАС ВИДЕО — arhiva (' + perPage + ' po stranici)' )
 				)
 			);
 		},

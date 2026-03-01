@@ -3,7 +3,7 @@
  * Render: kompas/rec-urednika
  */
 $post_id       = ! empty( $attributes['postId'] ) ? (int) $attributes['postId'] : 0;
-$title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ ГЛАВНОГ УРЕДНИКА';
+$title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ УРЕДНИКА';
 $link_text     = ! empty( $attributes['linkText'] ) ? $attributes['linkText'] : 'ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ';
 $category_slug = ! empty( $attributes['categorySlug'] ) ? $attributes['categorySlug'] : 'rec-urednika';
 
@@ -27,7 +27,7 @@ if ( ! $post ) {
 	return '';
 }
 
-$thumb_url = get_the_post_thumbnail_url( $post, 'large' );
+$post_link = get_permalink( $post );
 
 // Category archive link for "ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ".
 $cat_link = '';
@@ -38,16 +38,13 @@ if ( $cat ) {
 ?>
 <div class="kompas-rec-urednika">
 	<div class="kompas-rec-urednika__heading kompas-section-topline">
-		<h3 class="kompas-rec-urednika__title"><?php echo esc_html( $title ); ?></h3>
+		<a href="<?php echo esc_url( $post_link ); ?>" class="kompas-rec-urednika__title-link">
+			<h3 class="kompas-rec-urednika__title"><?php echo esc_html( $title ); ?></h3>
+		</a>
+		<a href="<?php echo esc_url( $post_link ); ?>" class="kompas-rec-urednika__read">
+			Прочитај <span class="kompas-rec-urednika__arrow">→</span>
+		</a>
 	</div>
-
-	<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" class="kompas-rec-urednika__image-link">
-		<?php if ( $thumb_url ) : ?>
-		<img src="<?php echo esc_url( $thumb_url ); ?>"
-			 alt="<?php echo esc_attr( get_the_title( $post ) ); ?>"
-			 class="kompas-rec-urednika__image" />
-		<?php endif; ?>
-	</a>
 
 	<?php if ( $cat_link ) : ?>
 	<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-rec-urednika__more"><?php echo esc_html( $link_text ); ?></a>

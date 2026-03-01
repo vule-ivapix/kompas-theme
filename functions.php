@@ -574,7 +574,7 @@ function kompas_render_custom_author_meta_box( $post ) {
 				value="1"
 				<?php checked( $no_translate ); ?>
 			/>
-			Не преводи ime аутора (остаје у ћирилици)
+			Не преводи ime аутора
 			</label>
 	</p>
 	<p style="margin-top:0.75rem">
@@ -743,6 +743,63 @@ function kompas_mark_post_title_block_no_translate_words( $block_content, $block
 add_filter( 'render_block_core/post-title', 'kompas_mark_post_title_block_no_translate_words', 10, 3 );
 
 /**
+ * Truncate post-title block only in frontend list/query contexts.
+ *
+ * Keeps full titles on single post pages and in admin/editor.
+ */
+function kompas_truncate_post_title_block_in_lists( $block_content, $block, $instance ) {
+	if ( is_admin() && ! wp_doing_ajax() ) {
+		return $block_content;
+	}
+
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$is_query_context = $instance instanceof WP_Block && ! empty( $instance->context['queryId'] );
+	$is_archive_like  = is_home() || is_archive() || is_search();
+
+	if ( ! $is_query_context && ! $is_archive_like ) {
+		return $block_content;
+	}
+
+	$full_title      = (string) get_the_title( $post_id );
+	$truncated_title = kompas_truncate_title( $full_title, 60 );
+	if ( $truncated_title === $full_title ) {
+		return $block_content;
+	}
+
+	$replacement = esc_html( $truncated_title );
+
+	if ( false !== stripos( $block_content, '<a ' ) ) {
+		$updated = preg_replace(
+			'/(<a\b[^>]*>).*?(<\/a>)/is',
+			'$1' . $replacement . '$2',
+			$block_content,
+			1
+		);
+		return $updated ?: $block_content;
+	}
+
+	$updated = preg_replace(
+		'/(>)[^<]*(<\/[a-zA-Z0-9:-]+>)/',
+		'$1' . $replacement . '$2',
+		$block_content,
+		1
+	);
+
+	return $updated ?: $block_content;
+}
+add_filter( 'render_block_core/post-title', 'kompas_truncate_post_title_block_in_lists', 20, 3 );
+
+/**
  * Track post views.
  */
 function kompas_track_views() {
@@ -783,6 +840,9 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_tabs_script' );
 function kompas_render_tabs_block( $attributes ) {
 	$count = isset( $attributes['count'] ) ? max( 1, (int) $attributes['count'] ) : 6;
 
+	$najnovije_url  = ! empty( $attributes['najnovijeUrl'] )  ? esc_url( $attributes['najnovijeUrl'] )  : '';
+	$najcitanije_url = ! empty( $attributes['najcitanijeUrl'] ) ? esc_url( $attributes['najcitanijeUrl'] ) : '';
+
 	$najnovije_ids  = ! empty( $attributes['najnovijePostIds'] ) ? array_map( 'absint', $attributes['najnovijePostIds'] ) : array();
 	$najcitanije_ids = ! empty( $attributes['najcitanijePostIds'] ) ? array_map( 'absint', $attributes['najcitanijePostIds'] ) : array();
 
@@ -809,6 +869,36 @@ function kompas_render_tabs_block( $attributes ) {
 		);
 	}
 
+	// Nav-link mode: URL-ovi su postavljeni → tab dugmad postaju linkovi, prikazuje se samo Najnovije panel.
+	if ( $najnovije_url || $najcitanije_url ) {
+		ob_start();
+		$active_style   = 'font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);display:inline-block;border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark);text-decoration:none;font-family:inherit';
+		$inactive_style = 'font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);display:inline-block;border-bottom:3px solid transparent;color:var(--wp--preset--color--muted);text-decoration:none;font-family:inherit';
+		?>
+		<div class="kompas-tabs-section" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60)">
+			<div class="kompas-tabs-heading kompas-section-topline" style="margin-bottom:var(--wp--preset--spacing--50)">
+				<div class="kompas-tabs-nav" style="display:flex;gap:0;border-bottom:1px solid var(--wp--preset--color--border)">
+					<?php if ( $najnovije_url ) : ?>
+					<a href="<?php echo $najnovije_url; ?>" style="<?php echo esc_attr( $active_style ); ?>">НАЈНОВИЈЕ</a>
+					<?php else : ?>
+					<span style="<?php echo esc_attr( $active_style ); ?>">НАЈНОВИЈЕ</span>
+					<?php endif; ?>
+					<?php if ( $najcitanije_url ) : ?>
+					<a href="<?php echo $najcitanije_url; ?>" style="<?php echo esc_attr( $inactive_style ); ?>">НАЈЧИТАНИЈЕ</a>
+					<?php else : ?>
+					<span style="<?php echo esc_attr( $inactive_style ); ?>">НАЈЧИТАНИЈЕ</span>
+					<?php endif; ?>
+				</div>
+			</div>
+			<div class="kompas-tab-panel is-active" data-panel="najnovije">
+				<?php echo kompas_render_posts_grid( $najnovije ); ?>
+			</div>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	// Default: toggle tab ponašanje.
 	$najcitanije = array();
 	if ( ! empty( $najcitanije_ids ) ) {
 		$najcitanije = get_posts( array(
@@ -895,6 +985,7 @@ function kompas_render_posts_grid( $posts ) {
  */
 function kompas_register_tabs_block() {
 	register_block_type( get_theme_file_path( 'blocks/tabs-najnovije-najcitanije' ) );
+	register_block_type( get_theme_file_path( 'blocks/post-list' ) );
 }
 add_action( 'init', 'kompas_register_tabs_block' );
 
@@ -999,6 +1090,9 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 	$title         = isset( $attributes['title'] ) ? trim( (string) $attributes['title'] ) : 'ПОВЕЗАНЕ ВЕСТИ';
 	$posts_to_show = isset( $attributes['postsToShow'] ) ? (int) $attributes['postsToShow'] : 4;
 	$posts_to_show = max( 1, min( 12, $posts_to_show ) );
+	$selected_ids  = ! empty( $attributes['selectedPostIds'] ) && is_array( $attributes['selectedPostIds'] )
+		? array_values( array_filter( array_map( 'absint', $attributes['selectedPostIds'] ) ) )
+		: array();
 
 	$exclude_ids = array();
 	if ( $exclude_id > 0 ) {
@@ -1010,16 +1104,37 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 		}
 	}
 
-	$query = new WP_Query( array(
-		'post_type'      => 'post',
-		'post_status'    => 'publish',
-		'posts_per_page' => $posts_to_show,
-		'orderby'        => 'date',
-		'order'          => 'DESC',
-		'post__not_in'   => $exclude_ids,
-	) );
+	$posts = array();
 
-	if ( ! $query->have_posts() ) {
+	// 1) Manually selected posts (preserve order).
+	if ( ! empty( $selected_ids ) ) {
+		$posts = get_posts( array(
+			'post_type'      => 'post',
+			'post_status'    => 'publish',
+			'post__in'       => $selected_ids,
+			'orderby'        => 'post__in',
+			'posts_per_page' => $posts_to_show,
+			'post__not_in'   => $exclude_ids,
+		) );
+	}
+
+	// 2) Fill remaining slots with latest posts.
+	$remaining = $posts_to_show - count( $posts );
+	if ( $remaining > 0 ) {
+		$posts = array_merge(
+			$posts,
+			get_posts( array(
+				'post_type'      => 'post',
+				'post_status'    => 'publish',
+				'posts_per_page' => $remaining,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'post__not_in'   => array_unique( array_merge( $exclude_ids, wp_list_pluck( $posts, 'ID' ) ) ),
+			) )
+		);
+	}
+
+	if ( empty( $posts ) ) {
 		return '';
 	}
 
@@ -1035,32 +1150,35 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 		</div>
 		<?php endif; ?>
 
-		<div class="wp-block-query kompas-related-posts-query">
-			<ul class="wp-block-post-template" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--wp--preset--spacing--40);margin:0;padding:0;list-style:none">
-				<?php while ( $query->have_posts() ) : $query->the_post(); ?>
-				<li class="wp-block-post">
-					<?php if ( has_post_thumbnail() ) : ?>
-					<figure class="wp-block-post-featured-image" style="margin-bottom:var(--wp--preset--spacing--20)">
-						<a href="<?php the_permalink(); ?>">
-							<?php
-							the_post_thumbnail( 'large', array(
-								'style' => 'aspect-ratio:16/10;object-fit:cover;width:100%;height:auto',
-							) );
-							?>
-						</a>
-					</figure>
-					<?php endif; ?>
-					<h2 class="wp-block-post-title has-dark-color has-text-color" style="font-size:0.875rem;font-weight:700;line-height:1.3;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( get_the_ID() ); ?>>
-						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-					</h2>
-				</li>
-				<?php endwhile; ?>
-			</ul>
-		</div>
+			<div class="wp-block-query kompas-related-posts-query">
+				<ul class="wp-block-post-template" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--wp--preset--spacing--40);margin:0;padding:0;list-style:none">
+					<?php foreach ( $posts as $related_post ) : ?>
+					<li class="wp-block-post">
+						<?php if ( has_post_thumbnail( $related_post ) ) : ?>
+						<figure class="wp-block-post-featured-image" style="margin-bottom:var(--wp--preset--spacing--20)">
+							<a href="<?php echo esc_url( get_permalink( $related_post ) ); ?>">
+								<?php
+								echo get_the_post_thumbnail(
+									$related_post,
+									'large',
+									array(
+										'style' => 'aspect-ratio:16/10;object-fit:cover;width:100%;height:auto',
+									)
+								);
+								?>
+							</a>
+						</figure>
+						<?php endif; ?>
+						<h2 class="wp-block-post-title has-dark-color has-text-color" style="font-size:0.875rem;font-weight:700;line-height:1.3;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( $related_post->ID ); ?>>
+							<a href="<?php echo esc_url( get_permalink( $related_post ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $related_post ), 60 ) ); ?></a>
+						</h2>
+					</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
 
-	</div>
-	<?php
-	wp_reset_postdata();
+		</div>
+		<?php
 	return ob_get_clean();
 }
 
@@ -1401,7 +1519,7 @@ function kompas_render_header_nav( $attributes = array() ) {
  */
 function kompas_render_header_tags( $attributes = array() ) {
 	$has_explicit_selection = isset( $attributes['selectedIds'] ) && is_array( $attributes['selectedIds'] );
-	$ids                   = $has_explicit_selection ? array_filter( array_map( 'absint', $attributes['selectedIds'] ) ) : array();
+	$ids                    = $has_explicit_selection ? array_filter( array_map( 'absint', $attributes['selectedIds'] ) ) : array();
 
 	// In block usage: if no tags are selected, don't render anything.
 	if ( $has_explicit_selection && empty( $ids ) ) {
@@ -1991,11 +2109,11 @@ add_filter( 'render_block_core/social-link', 'kompas_fix_share_links', 10, 2 );
  */
 
 /**
- * Truncate a title to a strict maximum number of characters with ellipsis.
+ * Truncate a title to N chars + ellipsis (e.g. 60 + "...").
  *
  * @param string $title  The post title.
- * @param int    $length Maximum character count (default 60).
- * @return string        Truncated title.
+ * @param int    $length Max visible chars before ellipsis (default 60).
+ * @return string
  */
 function kompas_truncate_title( $title, $length = 60 ) {
 	$title  = (string) $title;
@@ -2009,11 +2127,7 @@ function kompas_truncate_title( $title, $length = 60 ) {
 		return $title;
 	}
 
-	if ( $length <= 3 ) {
-		return mb_substr( $title, 0, $length );
-	}
-
-	return rtrim( mb_substr( $title, 0, $length - 3 ) ) . '...';
+	return mb_substr( $title, 0, $length ) . '...';
 }
 
 /**
@@ -2052,7 +2166,8 @@ function kompas_force_latin_slug( $title, $raw_title, $context ) {
 	$source = '' !== (string) $raw_title ? (string) $raw_title : (string) $title;
 
 	if ( preg_match( '/[\x{0400}-\x{04FF}]/u', $source ) ) {
-		return kompas_cyrillic_to_latin_for_slug( $source );
+		$latin = kompas_cyrillic_to_latin_for_slug( $source );
+		return sanitize_title_with_dashes( remove_accents( $latin ), '', 'save' );
 	}
 
 	return $title;
@@ -2060,42 +2175,23 @@ function kompas_force_latin_slug( $title, $raw_title, $context ) {
 add_filter( 'sanitize_title', 'kompas_force_latin_slug', 9, 3 );
 
 /**
- * Enforce strict 60-char title limit on save.
+ * Flush rewrite rules once after slug sanitization update (fixes tag archive 404).
  */
-function kompas_enforce_title_limit_on_save( $data, $postarr ) {
-	$post_type = isset( $data['post_type'] ) ? (string) $data['post_type'] : '';
-	if ( in_array( $post_type, array( 'revision', 'attachment', 'nav_menu_item' ), true ) ) {
-		return $data;
+function kompas_maybe_flush_rewrite_after_slug_fix() {
+	$key    = 'kompas_rewrite_flushed_slug_fix_v1';
+	$target = '1';
+
+	if ( get_option( $key ) === $target ) {
+		return;
 	}
 
-	if ( ! empty( $data['post_title'] ) ) {
-		$data['post_title'] = kompas_truncate_title( wp_strip_all_tags( (string) $data['post_title'] ), 60 );
-	}
-
-	return $data;
+	flush_rewrite_rules( false );
+	update_option( $key, $target, false );
 }
-add_filter( 'wp_insert_post_data', 'kompas_enforce_title_limit_on_save', 10, 2 );
+add_action( 'admin_init', 'kompas_maybe_flush_rewrite_after_slug_fix' );
 
-/**
- * Enforce strict 60-char title limit on frontend output (covers older posts too).
- */
-function kompas_enforce_title_limit_on_output( $title, $post_id = 0 ) {
-	if ( is_admin() && ! wp_doing_ajax() ) {
-		return $title;
-	}
-
-	if ( '' === (string) $title ) {
-		return $title;
-	}
-
-	$post_type = $post_id ? get_post_type( $post_id ) : '';
-	if ( in_array( $post_type, array( 'revision', 'attachment', 'nav_menu_item' ), true ) ) {
-		return $title;
-	}
-
-	return kompas_truncate_title( (string) $title, 60 );
-}
-add_filter( 'the_title', 'kompas_enforce_title_limit_on_output', 20, 2 );
+// Intentionally no global title mutation on save/output:
+// full title must stay intact in backend, single post, and slug generation.
 
 /**
  * Enqueue lightbox script on single posts.
@@ -2244,3 +2340,155 @@ function kompas_content_image_source( $block_content, $block ) {
 	return str_replace( '</figure>', $source_html . '</figure>', $block_content );
 }
 add_filter( 'render_block_core/image', 'kompas_content_image_source', 10, 2 );
+
+/**
+ * ── Kompas Video CPT ─────────────────────────────────────────
+ */
+
+/**
+ * Register kompas_video custom post type.
+ */
+function kompas_register_video_cpt() {
+	register_post_type( 'kompas_video', array(
+		'labels'       => array(
+			'name'         => 'Видео',
+			'singular_name' => 'Видео',
+			'add_new_item'  => 'Додај видео',
+			'edit_item'     => 'Измени видео',
+			'new_item'      => 'Нови видео',
+			'view_item'     => 'Погледај видео',
+			'search_items'  => 'Претражи видео',
+			'not_found'     => 'Нема видео записа.',
+		),
+		'public'       => true,
+		'has_archive'  => true,
+		'supports'     => array( 'title', 'thumbnail', 'excerpt', 'editor' ),
+		'rewrite'      => array( 'slug' => 'kompas-video' ),
+		'show_in_rest' => true,
+		'menu_icon'    => 'dashicons-video-alt3',
+	) );
+
+	register_post_meta( 'kompas_video', 'kompas_video_attachment_id', array(
+		'type'         => 'integer',
+		'single'       => true,
+		'show_in_rest' => true,
+	) );
+}
+add_action( 'init', 'kompas_register_video_cpt' );
+
+/**
+ * Add meta box for video file on kompas_video edit screen.
+ */
+function kompas_video_meta_box_init() {
+	add_meta_box(
+		'kompas_video_file',
+		'Видео фајл',
+		'kompas_video_meta_box_render',
+		'kompas_video',
+		'normal',
+		'high'
+	);
+}
+add_action( 'add_meta_boxes', 'kompas_video_meta_box_init' );
+
+function kompas_video_meta_box_render( $post ) {
+	wp_nonce_field( 'kompas_video_save', 'kompas_video_nonce' );
+	$attachment_id = (int) get_post_meta( $post->ID, 'kompas_video_attachment_id', true );
+	$filename      = $attachment_id ? basename( get_attached_file( $attachment_id ) ) : '';
+	?>
+	<p>
+		<input type="hidden" id="kompas-video-attachment-id" name="kompas_video_attachment_id" value="<?php echo esc_attr( $attachment_id ); ?>" />
+		<button type="button" class="button" id="kompas-video-select">Изабери видео</button>
+		<span id="kompas-video-filename" style="margin-left:8px"><?php echo esc_html( $filename ); ?></span>
+	</p>
+	<script>
+	( function() {
+		var btn      = document.getElementById( 'kompas-video-select' );
+		var input    = document.getElementById( 'kompas-video-attachment-id' );
+		var filename = document.getElementById( 'kompas-video-filename' );
+		btn.addEventListener( 'click', function() {
+			var frame = wp.media( {
+				title: 'Изабери видео',
+				button: { text: 'Изабери' },
+				library: { type: 'video' },
+				multiple: false,
+			} );
+			frame.on( 'select', function() {
+				var att = frame.state().get( 'selection' ).first().toJSON();
+				input.value    = att.id;
+				filename.textContent = att.filename || att.url.split( '/' ).pop();
+			} );
+			frame.open();
+		} );
+	} )();
+	</script>
+	<?php
+}
+
+/**
+ * Save video attachment ID.
+ */
+function kompas_video_meta_box_save( $post_id ) {
+	if ( ! isset( $_POST['kompas_video_nonce'] ) ) {
+		return;
+	}
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['kompas_video_nonce'] ) ), 'kompas_video_save' ) ) {
+		return;
+	}
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+	if ( isset( $_POST['kompas_video_attachment_id'] ) ) {
+		update_post_meta( $post_id, 'kompas_video_attachment_id', absint( $_POST['kompas_video_attachment_id'] ) );
+	}
+}
+add_action( 'save_post_kompas_video', 'kompas_video_meta_box_save' );
+
+/**
+ * Enqueue WP media on kompas_video edit screen.
+ */
+function kompas_video_enqueue_media( $hook ) {
+	$screen = get_current_screen();
+	if ( ! $screen || 'kompas_video' !== $screen->post_type ) {
+		return;
+	}
+	if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+		return;
+	}
+	wp_enqueue_media();
+}
+add_action( 'admin_enqueue_scripts', 'kompas_video_enqueue_media' );
+
+/**
+ * Register kompas/video and kompas/video-grid blocks.
+ */
+function kompas_register_video_blocks() {
+	register_block_type( get_theme_file_path( 'blocks/kompas-video' ) );
+	register_block_type( get_theme_file_path( 'blocks/video-grid' ) );
+}
+add_action( 'init', 'kompas_register_video_blocks' );
+
+/**
+ * Enqueue video lightbox script on front page and video archive.
+ */
+function kompas_enqueue_video_lightbox() {
+	if ( ! is_front_page() && ! is_post_type_archive( 'kompas_video' ) ) {
+		return;
+	}
+	$path = get_theme_file_path( 'assets/js/video-lightbox.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+	wp_enqueue_script(
+		'kompas-video-lightbox',
+		get_theme_file_uri( 'assets/js/video-lightbox.js' ),
+		array(),
+		$ver,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_video_lightbox' );

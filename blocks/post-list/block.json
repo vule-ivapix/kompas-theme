@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/post-list",
+	"title": "Kompas Post List",
+	"category": "theme",
+	"description": "2-kolonski grid postova sa paginacijom.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"orderby": {
+			"type": "string",
+			"default": "date"
+		},
+		"postsPerPage": {
+			"type": "integer",
+			"default": 12
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/post-list.php"
+}

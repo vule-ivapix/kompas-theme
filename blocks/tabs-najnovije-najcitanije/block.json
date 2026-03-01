@@ -21,6 +21,14 @@
 		"najcitanijePostIds": {
 			"type": "array",
 			"default": []
+		},
+		"najnovijeUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"najcitanijeUrl": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"textdomain": "kompas",

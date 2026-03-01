@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/video-grid",
+	"title": "Kompas Video Grid",
+	"category": "theme",
+	"description": "Prikazuje video postove u 3-kolonskom gridu za arhivsku stranicu.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"postsPerPage": {
+			"type": "integer",
+			"default": 12
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/video-grid.php"
+}

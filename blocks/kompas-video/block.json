@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/video",
+	"title": "Kompas Video",
+	"category": "theme",
+	"description": "Prikazuje najnovije video postove na naslovnoj strani.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"count": {
+			"type": "integer",
+			"default": 3
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/kompas-video.php"
+}
