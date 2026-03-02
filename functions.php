@@ -2368,10 +2368,11 @@ function kompas_register_video_cpt() {
 		'menu_icon'    => 'dashicons-video-alt3',
 	) );
 
-	register_post_meta( 'kompas_video', 'kompas_video_attachment_id', array(
-		'type'         => 'integer',
-		'single'       => true,
-		'show_in_rest' => true,
+	register_post_meta( 'kompas_video', 'kompas_video_url', array(
+		'type'              => 'string',
+		'single'            => true,
+		'show_in_rest'      => true,
+		'sanitize_callback' => 'esc_url_raw',
 	) );
 }
 add_action( 'init', 'kompas_register_video_cpt' );
@@ -2381,8 +2382,8 @@ add_action( 'init', 'kompas_register_video_cpt' );
  */
 function kompas_video_meta_box_init() {
 	add_meta_box(
-		'kompas_video_file',
-		'Видео фајл',
+		'kompas_video_url',
+		'YouTube линк',
 		'kompas_video_meta_box_render',
 		'kompas_video',
 		'normal',
@@ -2393,35 +2394,31 @@ add_action( 'add_meta_boxes', 'kompas_video_meta_box_init' );
 
 function kompas_video_meta_box_render( $post ) {
 	wp_nonce_field( 'kompas_video_save', 'kompas_video_nonce' );
-	$attachment_id = (int) get_post_meta( $post->ID, 'kompas_video_attachment_id', true );
-	$filename      = $attachment_id ? basename( get_attached_file( $attachment_id ) ) : '';
+	$video_url = esc_attr( get_post_meta( $post->ID, 'kompas_video_url', true ) );
+	$yt_id     = kompas_extract_youtube_id( $video_url );
 	?>
 	<p>
-		<input type="hidden" id="kompas-video-attachment-id" name="kompas_video_attachment_id" value="<?php echo esc_attr( $attachment_id ); ?>" />
-		<button type="button" class="button" id="kompas-video-select">Изабери видео</button>
-		<span id="kompas-video-filename" style="margin-left:8px"><?php echo esc_html( $filename ); ?></span>
+		<label for="kompas-video-url" style="display:block;margin-bottom:6px;font-weight:600;">
+			Налепи YouTube линк:
+		</label>
+		<input
+			type="url"
+			id="kompas-video-url"
+			name="kompas_video_url"
+			value="<?php echo $video_url; ?>"
+			placeholder="https://www.youtube.com/watch?v=..."
+			style="width:100%;"
+		/>
 	</p>
-	<script>
-	( function() {
-		var btn      = document.getElementById( 'kompas-video-select' );
-		var input    = document.getElementById( 'kompas-video-attachment-id' );
-		var filename = document.getElementById( 'kompas-video-filename' );
-		btn.addEventListener( 'click', function() {
-			var frame = wp.media( {
-				title: 'Изабери видео',
-				button: { text: 'Изабери' },
-				library: { type: 'video' },
-				multiple: false,
-			} );
-			frame.on( 'select', function() {
-				var att = frame.state().get( 'selection' ).first().toJSON();
-				input.value    = att.id;
-				filename.textContent = att.filename || att.url.split( '/' ).pop();
-			} );
-			frame.open();
-		} );
-	} )();
-	</script>
+	<?php if ( $yt_id ) : ?>
+	<p>
+		<img
+			src="https://img.youtube.com/vi/<?php echo esc_attr( $yt_id ); ?>/hqdefault.jpg"
+			alt="YouTube thumbnail"
+			style="max-width:320px;border-radius:3px;"
+		/>
+	</p>
+	<?php endif; ?>
 	<?php
 }
 
@@ -2441,26 +2438,30 @@ function kompas_video_meta_box_save( $post_id ) {
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
 		return;
 	}
-	if ( isset( $_POST['kompas_video_attachment_id'] ) ) {
-		update_post_meta( $post_id, 'kompas_video_attachment_id', absint( $_POST['kompas_video_attachment_id'] ) );
+	if ( isset( $_POST['kompas_video_url'] ) ) {
+		$url = esc_url_raw( wp_unslash( $_POST['kompas_video_url'] ) );
+		update_post_meta( $post_id, 'kompas_video_url', $url );
 	}
 }
 add_action( 'save_post_kompas_video', 'kompas_video_meta_box_save' );
 
 /**
- * Enqueue WP media on kompas_video edit screen.
+ * Extract YouTube video ID from any YouTube URL format.
+ *
+ * Handles:
+ *   https://www.youtube.com/watch?v=VIDEO_ID
+ *   https://youtu.be/VIDEO_ID
+ *   https://www.youtube.com/embed/VIDEO_ID
  */
-function kompas_video_enqueue_media( $hook ) {
-	$screen = get_current_screen();
-	if ( ! $screen || 'kompas_video' !== $screen->post_type ) {
-		return;
+function kompas_extract_youtube_id( $url ) {
+	if ( empty( $url ) ) {
+		return '';
 	}
-	if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
-		return;
+	if ( preg_match( '/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $url, $m ) ) {
+		return $m[1];
 	}
-	wp_enqueue_media();
+	return '';
 }
-add_action( 'admin_enqueue_scripts', 'kompas_video_enqueue_media' );
 
 /**
  * Register kompas/video and kompas/video-grid blocks.

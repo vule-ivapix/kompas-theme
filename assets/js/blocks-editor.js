@@ -798,6 +798,18 @@
 				var categoryNames = _catNames[0];
 				var setCategoryNames = _catNames[1];
 
+				var _dragState = useState( null );
+				var dragSrcIdx = _dragState[0];
+				var setDragSrcIdx = _dragState[1];
+
+				function moveCategory( fromIdx, toIdx ) {
+					if ( fromIdx === toIdx ) return;
+					var next = selectedIds.slice();
+					var moved = next.splice( fromIdx, 1 )[ 0 ];
+					next.splice( toIdx, 0, moved );
+					props.setAttributes( { selectedIds: next } );
+				}
+
 				function getPostsForCategory( catId ) {
 					var key = String( catId );
 					return Array.isArray( postsByCategory[ key ] ) ? postsByCategory[ key ] : [];
@@ -841,6 +853,47 @@
 							} );
 							},
 						} ),
+					selectedIds.length > 1 && el( PanelBody, { title: 'Redosled kategorija', initialOpen: true },
+						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: 0, marginBottom: '8px' } },
+							'Prevuci da promeniš redosled prikaza na sajtu.'
+						),
+						selectedIds.map( function( catId, index ) {
+							return el( 'div', {
+								key: 'drag-' + catId,
+								draggable: true,
+								onDragStart: function( e ) {
+									e.dataTransfer.effectAllowed = 'move';
+									setDragSrcIdx( index );
+								},
+								onDragOver: function( e ) {
+									e.preventDefault();
+									e.dataTransfer.dropEffect = 'move';
+								},
+								onDrop: function( e ) {
+									e.preventDefault();
+									moveCategory( dragSrcIdx, index );
+									setDragSrcIdx( null );
+								},
+								style: {
+									padding: '7px 10px',
+									marginBottom: '4px',
+									background: dragSrcIdx === index ? '#f0f6fc' : '#fff',
+									border: '1px solid ' + ( dragSrcIdx === index ? '#72aee6' : '#ddd' ),
+									borderRadius: '2px',
+									cursor: 'grab',
+									display: 'flex',
+									alignItems: 'center',
+									gap: '8px',
+									userSelect: 'none',
+								}
+							},
+								el( 'span', { style: { color: '#bbb', fontSize: '18px', lineHeight: '1', flexShrink: 0 } }, '⠿' ),
+								el( 'span', { style: { fontSize: '13px' } },
+									categoryNames[ catId ] || ( 'Kategorija #' + catId )
+								)
+							);
+						} )
+					),
 						selectedIds.map( function( catId ) {
 							var catPosts = getPostsForCategory( catId );
 							var title = categoryNames[ catId ] ? categoryNames[ catId ] : ( 'Kategorija #' + catId );

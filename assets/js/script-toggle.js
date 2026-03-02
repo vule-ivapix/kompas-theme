@@ -266,9 +266,6 @@
 	}
 
 	function resolveInitialScript() {
-		if ( document.querySelector( '.kompas-header .kompas-search .wp-block-search__input' ) ) {
-			return 'cyr';
-		}
 		return currentScript;
 	}
 

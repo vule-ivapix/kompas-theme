@@ -3,6 +3,16 @@
 
 	var overlay = null;
 
+	/**
+	 * Convert any YouTube URL to an embed URL with autoplay.
+	 * Handles: watch?v=, youtu.be/, embed/
+	 */
+	function youtubeEmbedUrl( url ) {
+		var match = url.match( /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/ );
+		if ( ! match ) return '';
+		return 'https://www.youtube.com/embed/' + match[ 1 ] + '?autoplay=1&rel=0';
+	}
+
 	function buildOverlay() {
 		if ( overlay ) return;
 
@@ -14,7 +24,8 @@
 		overlay.innerHTML =
 			'<div class="kompas-video-lightbox__container">' +
 				'<div class="kompas-video-lightbox__video-panel">' +
-					'<video class="kompas-video-lightbox__video" controls playsinline></video>' +
+					'<iframe class="kompas-video-lightbox__video" frameborder="0" allowfullscreen ' +
+						'allow="autoplay; encrypted-media; picture-in-picture"></iframe>' +
 				'</div>' +
 				'<div class="kompas-video-lightbox__info-panel">' +
 					'<button class="kompas-video-lightbox__close" aria-label="Zatvori">&times;</button>' +
@@ -42,8 +53,9 @@
 	function openOverlay( url, title, desc, date ) {
 		buildOverlay();
 
-		var video = overlay.querySelector( '.kompas-video-lightbox__video' );
-		video.src = url;
+		var embedUrl = youtubeEmbedUrl( url );
+		var iframe   = overlay.querySelector( '.kompas-video-lightbox__video' );
+		iframe.src   = embedUrl;
 
 		overlay.querySelector( '.kompas-video-lightbox__title' ).textContent = title || '';
 		overlay.querySelector( '.kompas-video-lightbox__desc' ).textContent  = desc  || '';
@@ -58,9 +70,9 @@
 		overlay.classList.remove( 'is-open' );
 		document.body.style.overflow = '';
 
-		var video = overlay.querySelector( '.kompas-video-lightbox__video' );
-		video.pause();
-		video.src = '';
+		// Clear src to stop YouTube playback.
+		var iframe = overlay.querySelector( '.kompas-video-lightbox__video' );
+		iframe.src = '';
 	}
 
 	function init() {

@@ -29,14 +29,17 @@ $archive_url = get_post_type_archive_link( 'kompas_video' );
 
 	<div class="kompas-video__grid">
 		<?php foreach ( $videos as $video ) :
-			$attachment_id = (int) get_post_meta( $video->ID, 'kompas_video_attachment_id', true );
-			$video_url     = $attachment_id ? wp_get_attachment_url( $attachment_id ) : '';
+			$video_url = get_post_meta( $video->ID, 'kompas_video_url', true );
 			if ( ! $video_url ) continue;
 
+			$yt_id     = kompas_extract_youtube_id( $video_url );
 			$thumb_url = get_the_post_thumbnail_url( $video->ID, 'medium_large' );
-			$title     = get_the_title( $video->ID );
-			$desc      = get_the_excerpt( $video->ID );
-			$date      = get_the_date( '', $video->ID );
+			if ( ! $thumb_url && $yt_id ) {
+				$thumb_url = 'https://img.youtube.com/vi/' . $yt_id . '/hqdefault.jpg';
+			}
+			$title = get_the_title( $video->ID );
+			$desc  = get_the_excerpt( $video->ID );
+			$date  = get_the_date( '', $video->ID );
 		?>
 		<div class="kompas-video-card"
 			data-video-url="<?php echo esc_attr( $video_url ); ?>"

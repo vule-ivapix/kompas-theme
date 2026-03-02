@@ -23,15 +23,18 @@ if ( ! $query->have_posts() ) {
 ?>
 <div class="kompas-video-grid">
 	<?php while ( $query->have_posts() ) : $query->the_post();
-		$video_id      = get_the_ID();
-		$attachment_id = (int) get_post_meta( $video_id, 'kompas_video_attachment_id', true );
-		$video_url     = $attachment_id ? wp_get_attachment_url( $attachment_id ) : '';
+		$video_id  = get_the_ID();
+		$video_url = get_post_meta( $video_id, 'kompas_video_url', true );
 		if ( ! $video_url ) continue;
 
+		$yt_id     = kompas_extract_youtube_id( $video_url );
 		$thumb_url = get_the_post_thumbnail_url( $video_id, 'medium_large' );
-		$title     = get_the_title();
-		$desc      = get_the_excerpt();
-		$date      = get_the_date();
+		if ( ! $thumb_url && $yt_id ) {
+			$thumb_url = 'https://img.youtube.com/vi/' . $yt_id . '/hqdefault.jpg';
+		}
+		$title = get_the_title();
+		$desc  = get_the_excerpt();
+		$date  = get_the_date();
 	?>
 	<div class="kompas-video-card"
 		data-video-url="<?php echo esc_attr( $video_url ); ?>"
