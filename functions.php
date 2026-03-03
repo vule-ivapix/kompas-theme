@@ -15,6 +15,7 @@ define( 'KOMPAS_AUTHOR_LINK_META_KEY', 'kompas_author_link' );
 define( 'KOMPAS_AUTHOR_NO_TRANSLATE_META_KEY', 'kompas_author_no_translate' );
 define( 'KOMPAS_TITLE_NO_TRANSLATE_WORDS_META_KEY', 'kompas_title_no_translate_words' );
 define( 'KOMPAS_GLOBAL_NO_TRANSLATE_WORDS_OPTION', 'kompas_global_no_translate_words' );
+define( 'KOMPAS_AUTHOR_ID_META_KEY', 'kompas_author_id' );
 
 /**
  * Enqueue Google Fonts with full latin-ext/cyrillic subsets.
@@ -83,6 +84,62 @@ function kompas_enqueue_styles() {
 	}
 }
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_styles' );
+
+/**
+ * ── CPT: kompas_autor ─────────────────────────────────────────
+ */
+
+/**
+ * Register Custom Post Type for authors.
+ */
+function kompas_register_autor_cpt() {
+	register_post_type( 'kompas_autor', array(
+		'labels' => array(
+			'name'               => 'Аутори',
+			'singular_name'      => 'Аутор',
+			'add_new'            => 'Додај аутора',
+			'add_new_item'       => 'Додај новог аутора',
+			'edit_item'          => 'Уреди аутора',
+			'new_item'           => 'Нови аутор',
+			'view_item'          => 'Погледај аутора',
+			'search_items'       => 'Претражи ауторе',
+			'not_found'          => 'Нема аутора',
+			'not_found_in_trash' => 'Нема аутора у смећу',
+		),
+		'public'             => false,
+		'publicly_queryable' => false,
+		'show_ui'            => true,
+		'show_in_menu'       => true,
+		'show_in_rest'       => true,
+		'rest_base'          => 'kompas_autor',
+		'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
+		'menu_icon'          => 'dashicons-businessperson',
+		'menu_position'      => 5,
+		'capability_type'    => 'post',
+		'has_archive'        => false,
+	) );
+}
+add_action( 'init', 'kompas_register_autor_cpt' );
+
+/**
+ * Expose featured_image_url field on kompas_autor REST endpoint.
+ */
+function kompas_register_autor_rest_fields() {
+	register_rest_field( 'kompas_autor', 'featured_image_url', array(
+		'get_callback' => function ( $post_arr ) {
+			if ( empty( $post_arr['featured_media'] ) ) {
+				return '';
+			}
+			$url = get_the_post_thumbnail_url( (int) $post_arr['id'], 'thumbnail' );
+			return $url ?: '';
+		},
+		'schema' => array(
+			'type'        => 'string',
+			'description' => 'URL of the author thumbnail photo.',
+		),
+	) );
+}
+add_action( 'rest_api_init', 'kompas_register_autor_rest_fields' );
 
 /**
  * Register block patterns category.
@@ -330,6 +387,16 @@ function kompas_register_meta() {
 		},
 	) );
 
+	register_post_meta( 'post', KOMPAS_AUTHOR_ID_META_KEY, array(
+		'show_in_rest'  => true,
+		'single'        => true,
+		'type'          => 'integer',
+		'default'       => 0,
+		'auth_callback' => function () {
+			return current_user_can( 'edit_posts' );
+		},
+	) );
+
 	register_post_meta( 'post', KOMPAS_AUTHOR_NO_TRANSLATE_META_KEY, array(
 		'show_in_rest'  => true,
 		'single'        => true,
@@ -523,7 +590,7 @@ function kompas_get_post_title_no_translate_data_attr( $post_id ) {
 function kompas_add_custom_author_meta_box() {
 	add_meta_box(
 		'kompas-custom-author',
-		'Аутор (ручни унос)',
+		'Аутор',
 		'kompas_render_custom_author_meta_box',
 		'post',
 		'side',
@@ -533,15 +600,94 @@ function kompas_add_custom_author_meta_box() {
 add_action( 'add_meta_boxes_post', 'kompas_add_custom_author_meta_box' );
 
 /**
+ * Enqueue live-search script for the author meta box on post edit screens.
+ */
+function kompas_enqueue_author_meta_box_script( $hook ) {
+	if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+		return;
+	}
+	$screen = get_current_screen();
+	if ( ! $screen || 'post' !== $screen->post_type ) {
+		return;
+	}
+	$path = get_theme_file_path( 'assets/js/author-meta-box.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+	wp_enqueue_script(
+		'kompas-author-meta-box',
+		get_theme_file_uri( 'assets/js/author-meta-box.js' ),
+		array(),
+		$ver,
+		true
+	);
+	wp_localize_script( 'kompas-author-meta-box', 'kompasAuthorMeta', array(
+		'nonce'   => wp_create_nonce( 'wp_rest' ),
+		'restUrl' => rest_url( 'wp/v2/kompas_autor' ),
+	) );
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_author_meta_box_script' );
+
+/**
  * Render custom author name field for posts.
  */
 function kompas_render_custom_author_meta_box( $post ) {
+	$author_cpt_id            = (int) get_post_meta( $post->ID, KOMPAS_AUTHOR_ID_META_KEY, true );
 	$custom_author            = get_post_meta( $post->ID, KOMPAS_CUSTOM_AUTHOR_META_KEY, true );
 	$author_link              = (bool) get_post_meta( $post->ID, KOMPAS_AUTHOR_LINK_META_KEY, true );
 	$no_translate             = (bool) get_post_meta( $post->ID, KOMPAS_AUTHOR_NO_TRANSLATE_META_KEY, true );
 	$title_no_translate_words = (string) get_post_meta( $post->ID, KOMPAS_TITLE_NO_TRANSLATE_WORDS_META_KEY, true );
 	wp_nonce_field( 'kompas_save_custom_author', 'kompas_custom_author_nonce' );
+
+	$cpt_author_name  = '';
+	$cpt_author_photo = '';
+	if ( $author_cpt_id > 0 ) {
+		$cpt_post = get_post( $author_cpt_id );
+		if ( $cpt_post ) {
+			$cpt_author_name  = get_the_title( $cpt_post );
+			$cpt_author_photo = get_the_post_thumbnail_url( $author_cpt_id, 'thumbnail' );
+		}
+	}
 	?>
+
+	<div id="kompas-author-cpt-section">
+		<p style="font-weight:600;margin:0 0 6px">Аутор из базе аутора:</p>
+		<input
+			type="hidden"
+			id="kompas-author-id-input"
+			name="<?php echo esc_attr( KOMPAS_AUTHOR_ID_META_KEY ); ?>"
+			value="<?php echo esc_attr( $author_cpt_id > 0 ? $author_cpt_id : '' ); ?>"
+		/>
+		<div id="kompas-author-selected" style="margin-bottom:6px;<?php echo $author_cpt_id > 0 ? '' : 'display:none;'; ?>">
+			<img
+				id="kompas-author-selected-photo"
+				src="<?php echo esc_url( $cpt_author_photo ); ?>"
+				alt=""
+				style="width:40px;height:40px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;<?php echo $cpt_author_photo ? '' : 'display:none;'; ?>"
+			/>
+			<strong id="kompas-author-selected-name"><?php echo esc_html( $cpt_author_name ); ?></strong>
+		</div>
+		<input
+			type="text"
+			id="kompas-author-search-input"
+			placeholder="Претражи ауторе..."
+			class="widefat"
+			autocomplete="off"
+			style="<?php echo $author_cpt_id > 0 ? 'display:none;' : ''; ?>"
+		/>
+		<div id="kompas-author-search-results" style="background:#fff;border:1px solid #ddd;border-radius:3px;margin-top:2px;display:none"></div>
+		<button
+			type="button"
+			id="kompas-author-remove"
+			class="button button-small"
+			style="margin-top:6px;<?php echo $author_cpt_id > 0 ? '' : 'display:none;'; ?>"
+		>Уклони аутора</button>
+	</div>
+
+	<hr style="margin:12px 0" />
+	<p style="color:#666;font-size:11px;margin:0 0 8px">Резервни унос (само ако нема CPT аутора):</p>
+
 	<p>
 		<label for="kompas-custom-author-input">Име аутора (опционо)</label>
 		<input
@@ -610,6 +756,14 @@ function kompas_save_custom_author_meta( $post_id ) {
 		return;
 	}
 
+	// Save kompas_author_id (CPT-based author).
+	$author_cpt_id = isset( $_POST[ KOMPAS_AUTHOR_ID_META_KEY ] ) ? absint( $_POST[ KOMPAS_AUTHOR_ID_META_KEY ] ) : 0;
+	if ( $author_cpt_id > 0 ) {
+		update_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, $author_cpt_id );
+	} else {
+		delete_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY );
+	}
+
 	if ( ! isset( $_POST['kompas_custom_author'] ) ) {
 		return;
 	}
@@ -653,6 +807,34 @@ function kompas_replace_post_author_name_block( $block_content, $block, $instanc
 
 	if ( $post_id <= 0 ) {
 		return $block_content;
+	}
+
+	// CPT-based author takes priority.
+	$cpt_author_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
+	if ( $cpt_author_id > 0 ) {
+		$cpt_post = get_post( $cpt_author_id );
+		if ( $cpt_post && 'publish' === $cpt_post->post_status ) {
+			$custom_author = esc_html( get_the_title( $cpt_post ) );
+			// CPT authors: strip link (no public page), no no-translate needed.
+			$updated = preg_replace(
+				'/<a\b[^>]*>(.*?)<\/a>/is',
+				$custom_author,
+				$block_content,
+				1
+			);
+			if ( $updated ) {
+				return $updated;
+			}
+			$updated = preg_replace_callback(
+				'/(<div\b[^>]*>).*?(<\/div>)/is',
+				static function ( $matches ) use ( $custom_author ) {
+					return $matches[1] . $custom_author . $matches[2];
+				},
+				$block_content,
+				1
+			);
+			return $updated ?: $block_content;
+		}
 	}
 
 	$custom_author = trim( (string) get_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY, true ) );
@@ -910,10 +1092,10 @@ function kompas_render_tabs_block( $attributes ) {
 				<?php if ( $najnovije_url || $najcitanije_url ) : ?>
 				<div class="kompas-tabs-viewall" style="display:flex;gap:var(--wp--preset--spacing--40)">
 					<?php if ( $najnovije_url ) : ?>
-					<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">ПОГЛЕДАЈ СВЕ НАЈНОВИЈЕ →</a>
+					<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈНОВИЈЕ →</a>
 					<?php endif; ?>
 					<?php if ( $najcitanije_url ) : ?>
-					<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">ПОГЛЕДАЈ СВЕ НАЈЧИТАНИЈЕ →</a>
+					<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">СВЕ НАЈЧИТАНИЈЕ →</a>
 					<?php endif; ?>
 				</div>
 				<?php endif; ?>
@@ -927,6 +1109,17 @@ function kompas_render_tabs_block( $attributes ) {
 		<div class="kompas-tab-panel" data-panel="najcitanije" style="display:none">
 			<?php echo kompas_render_posts_grid( $najcitanije ); ?>
 		</div>
+
+	<?php if ( $najnovije_url || $najcitanije_url ) : ?>
+	<div class="kompas-tabs-viewall kompas-tabs-viewall--bottom" style="display:none">
+		<?php if ( $najnovije_url ) : ?>
+		<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈНОВИЈЕ →</a>
+		<?php endif; ?>
+		<?php if ( $najcitanije_url ) : ?>
+		<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">СВЕ НАЈЧИТАНИЈЕ →</a>
+		<?php endif; ?>
+	</div>
+	<?php endif; ?>
 
 	</div>
 	<?php
@@ -1592,6 +1785,7 @@ add_action( 'init', 'kompas_register_category_grid_block' );
 function kompas_register_kolumne_rec_blocks() {
 	register_block_type( get_theme_file_path( 'blocks/kolumne' ) );
 	register_block_type( get_theme_file_path( 'blocks/rec-urednika' ) );
+	register_block_type( get_theme_file_path( 'blocks/autor-card' ) );
 }
 add_action( 'init', 'kompas_register_kolumne_rec_blocks' );
 
@@ -1937,6 +2131,11 @@ function kompas_hide_author_wrap( $block_content, $block, $instance ) {
 		return $block_content;
 	}
 
+	$cpt_author_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
+	if ( $cpt_author_id > 0 ) {
+		return $block_content;
+	}
+
 	$custom_author = trim( (string) get_post_meta( $post_id, KOMPAS_CUSTOM_AUTHOR_META_KEY, true ) );
 	if ( '' === $custom_author ) {
 		return '';
@@ -1945,6 +2144,37 @@ function kompas_hide_author_wrap( $block_content, $block, $instance ) {
 	return $block_content;
 }
 add_filter( 'render_block_core/group', 'kompas_hide_author_wrap', 10, 3 );
+
+/**
+ * Replace avatar block image with CPT author photo when kompas_author_id is set.
+ * Handles the core/avatar block used in single-kolumne.html.
+ */
+function kompas_replace_avatar_block_with_cpt_photo( $block_content, $block, $instance ) {
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	} elseif ( get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+
+	if ( $post_id <= 0 ) {
+		return $block_content;
+	}
+
+	$cpt_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
+	if ( $cpt_id <= 0 ) {
+		return $block_content;
+	}
+
+	$photo_url = get_the_post_thumbnail_url( $cpt_id, 'thumbnail' );
+	if ( ! $photo_url ) {
+		return $block_content;
+	}
+
+	$block_content = preg_replace( '/src="[^"]*"/', 'src="' . esc_url( $photo_url ) . '"', $block_content, 1 );
+	return $block_content;
+}
+add_filter( 'render_block_core/avatar', 'kompas_replace_avatar_block_with_cpt_photo', 10, 3 );
 
 /**
  * ── Izvor fotografije (caption) ispod featured image ─────────
@@ -2479,3 +2709,15 @@ function kompas_enqueue_video_lightbox() {
 	);
 }
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_video_lightbox' );
+
+/**
+ * Register kompas/logo-autori block.
+ */
+register_block_type( 'kompas/logo-autori', array(
+	'render_callback' => function() {
+		return '<div style="text-align:center;padding:var(--wp--preset--spacing--60) 0">'
+			 . '<img src="' . esc_url( get_template_directory_uri() ) . '/logo-autori.svg"'
+			 . ' alt="Kompas Autori" style="max-height:60px;width:auto;display:inline-block" />'
+			 . '</div>';
+	},
+) );

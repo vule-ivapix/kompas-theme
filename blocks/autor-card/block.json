@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/autor-card",
+	"title": "Kompas Autor Card",
+	"category": "theme",
+	"description": "Prikazuje karticu autora iz CPT kompas_autor.",
+	"supports": {
+		"html": false,
+		"inserter": true
+	},
+	"attributes": {
+		"autorId": {
+			"type": "number",
+			"default": 0
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-blocks-editor",
+	"render": "file:../../render/autor-card.php"
+}

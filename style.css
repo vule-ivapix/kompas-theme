@@ -374,7 +374,8 @@ img {
 .kompas-search.wp-block-search__button-only .wp-block-search__inside-wrapper {
 	width: auto;
 	min-height: auto;
-	border: none;
+	border: none !important;
+	box-shadow: none !important;
 	background: transparent;
 	padding: 0;
 }
@@ -429,10 +430,15 @@ img {
 }
 
 .kompas-search.wp-block-search__button-only .wp-block-search__button {
-	border-left: none;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	-webkit-appearance: none;
+	appearance: none;
 	padding: 0;
 	min-width: auto;
 	height: auto;
+	background: transparent;
 }
 
 .kompas-search .wp-block-search__button:hover {
@@ -743,12 +749,14 @@ img {
 }
 
 .kompas-mobile-nav.is-open .kompas-mobile-overlay {
-	top: var(--kompas-mobile-bar-height);
+	/* top: var(--kompas-mobile-bar-height); */
+	top: 110px;
 	height: calc(100dvh - var(--kompas-mobile-bar-height));
 }
 
 .kompas-mobile-overlay__inner {
 	padding: 0 1.25rem 3rem;
+	padding-top: 30px;
 }
 
 /* Prevent body scroll when menu open */
@@ -764,7 +772,6 @@ body.kompas-mobile-menu-open {
 	top: 0;
 	z-index: 3;
 	background: var(--wp--preset--color--white);
-	padding-top: 1rem;
 	border: 1px solid var(--wp--preset--color--border);
 	border-radius: 4px;
 	margin-bottom: 1.5rem;
@@ -1180,6 +1187,18 @@ body.kompas-mobile-menu-open {
 	.kompas-tab-panel .wp-block-column > h4 {
 		flex: 1 1 auto;
 		margin: 0 !important;
+	}
+
+	.kompas-tabs-heading .kompas-tabs-viewall {
+		display: none !important;
+	}
+
+	.kompas-tabs-viewall--bottom {
+		display: flex !important;
+		justify-content: center;
+		gap: var(--wp--preset--spacing--50);
+		padding-top: var(--wp--preset--spacing--50);
+		flex-wrap: wrap;
 	}
 
 	/* Related posts: 2x2 grid on mobile. */

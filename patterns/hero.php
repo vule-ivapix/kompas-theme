@@ -31,5 +31,7 @@
 </div>
 <!-- /wp:columns -->
 
+<!-- wp:kompas/video /-->
+
 </div>
 <!-- /wp:group -->

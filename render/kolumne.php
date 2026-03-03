@@ -14,6 +14,9 @@ $kolumne_cat = get_terms( array(
 ) );
 $kolumne_term = ( ! empty( $kolumne_cat ) && ! is_wp_error( $kolumne_cat ) ) ? $kolumne_cat[0] : null;
 
+$target = 3;
+
+// Load manually selected posts first.
 if ( ! empty( $post_ids ) ) {
 	$posts = get_posts( array(
 		'post__in'       => $post_ids,
@@ -22,12 +25,24 @@ if ( ! empty( $post_ids ) ) {
 		'post_status'    => 'publish',
 	) );
 } else {
-	// Fallback: latest posts from "kolumne" category.
-	$posts = get_posts( array(
-		'category'       => $kolumne_term ? $kolumne_term->term_id : 0,
-		'posts_per_page' => $count,
+	$posts = array();
+}
+
+// Fill up to $target with latest from "kolumne" category, skipping already selected.
+if ( count( $posts ) < $target && $kolumne_term ) {
+	$existing_ids = wp_list_pluck( $posts, 'ID' );
+	$fill_args    = array(
+		'category'       => $kolumne_term->term_id,
+		'posts_per_page' => $target - count( $posts ),
 		'post_status'    => 'publish',
-	) );
+		'orderby'        => 'date',
+		'order'          => 'DESC',
+	);
+	if ( ! empty( $existing_ids ) ) {
+		$fill_args['post__not_in'] = $existing_ids;
+	}
+	$fill_posts = get_posts( $fill_args );
+	$posts      = array_merge( $posts, $fill_posts );
 }
 
 if ( empty( $posts ) ) {
@@ -46,15 +61,29 @@ $cat_link = $kolumne_term ? get_category_link( $kolumne_term->term_id ) : '';
 			$author_id   = $p->post_author;
 			$author_name = get_the_author_meta( 'display_name', $author_id );
 			$avatar_url  = get_avatar_url( $author_id, array( 'size' => 120 ) );
-			$excerpt     = wp_trim_words( get_the_excerpt( $p ), 12 );
+			$item_url    = get_permalink( $p );
+			$post_title  = get_the_title( $p );
+
+			// CPT author overrides WP user data.
+			$cpt_author_id = (int) get_post_meta( $p->ID, 'kompas_author_id', true );
+			if ( $cpt_author_id > 0 ) {
+				$cpt_post = get_post( $cpt_author_id );
+				if ( $cpt_post ) {
+					$author_name = get_the_title( $cpt_post );
+					$cpt_photo   = get_the_post_thumbnail_url( $cpt_author_id, 'thumbnail' );
+					if ( $cpt_photo ) {
+						$avatar_url = $cpt_photo;
+					}
+				}
+			}
 		?>
-		<a href="<?php echo esc_url( get_author_posts_url( $author_id ) ); ?>" class="kompas-kolumne__item">
+		<a href="<?php echo esc_url( $item_url ); ?>" class="kompas-kolumne__item">
 			<img src="<?php echo esc_url( $avatar_url ); ?>"
 				 alt="<?php echo esc_attr( $author_name ); ?>"
 				 class="kompas-kolumne__avatar" />
 			<div class="kompas-kolumne__text">
 				<span class="kompas-kolumne__name"><?php echo esc_html( mb_strtoupper( $author_name ) ); ?></span>
-				<span class="kompas-kolumne__excerpt"><?php echo esc_html( $excerpt ); ?></span>
+				<span class="kompas-kolumne__excerpt"><?php echo esc_html( $post_title ); ?></span>
 			</div>
 		</a>
 		<?php endforeach; ?>

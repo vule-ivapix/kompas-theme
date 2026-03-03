@@ -1277,6 +1277,93 @@
 		save: function() { return null; },
 	} );
 
+	/* ── Autor Card ─────────────────────────────────────────── */
+	blocks.registerBlockType( 'kompas/autor-card', {
+		edit: function ( props ) {
+			var blockProps = useBlockProps();
+			var autorId    = props.attributes.autorId || 0;
+
+			var _s   = useState( '' );    var search   = _s[0];   var setSearch   = _s[1];
+			var _r   = useState( [] );    var results  = _r[0];   var setResults  = _r[1];
+			var _l   = useState( false ); var loading  = _l[0];   var setLoading  = _l[1];
+			var _sel = useState( null );  var selected = _sel[0]; var setSelected = _sel[1];
+
+			// Load existing selection on mount.
+			useEffect( function () {
+				if ( ! autorId ) { setSelected( null ); return; }
+				apiFetch( { path: '/wp/v2/kompas_autor/' + autorId + '?_fields=id,title,featured_image_url' } )
+					.then( function ( a ) { setSelected( a ); } )
+					.catch( function () { setSelected( null ); } );
+			}, [ autorId ] );
+
+			// Search.
+			useEffect( function () {
+				if ( search.length < 2 ) { setResults( [] ); return; }
+				setLoading( true );
+				var t = setTimeout( function () {
+					apiFetch( { path: '/wp/v2/kompas_autor?search=' + encodeURIComponent( search ) + '&per_page=10&_fields=id,title,featured_image_url' } )
+						.then( function ( data ) { setResults( data ); setLoading( false ); } )
+						.catch( function () { setResults( [] ); setLoading( false ); } );
+				}, 300 );
+				return function () { clearTimeout( t ); };
+			}, [ search ] );
+
+			function pick( autor ) {
+				props.setAttributes( { autorId: autor.id } );
+				setSelected( autor );
+				setSearch( '' );
+				setResults( [] );
+			}
+			function clear() {
+				props.setAttributes( { autorId: 0 } );
+				setSelected( null );
+				setSearch( '' );
+			}
+
+			var filtered = results.filter( function ( a ) { return a.id !== autorId; } );
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Аутор', initialOpen: true },
+						selected
+							? el( 'div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' } },
+								selected.featured_image_url && el( 'img', {
+									src: selected.featured_image_url,
+									style: { width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 },
+								} ),
+								el( 'span', { style: { flex: 1, fontSize: '13px' } }, selected.title.rendered ),
+								el( Button, { isDestructive: true, size: 'small', onClick: clear, icon: 'no-alt', style: { flexShrink: 0 } } )
+							)
+							: null,
+						! selected && el( SearchControl, { value: search, onChange: setSearch, placeholder: 'Претражи ауторе...' } ),
+						loading && el( Spinner ),
+						! loading && filtered.length > 0 && el( 'div', { style: { border: '1px solid #ddd', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto', background: '#fff' } },
+							filtered.map( function ( autor ) {
+								return el( Button, {
+									key: autor.id,
+									onClick: function () { pick( autor ); },
+									style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '13px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', borderRadius: 0, height: 'auto' },
+								}, autor.title.rendered );
+							} )
+						)
+					)
+				),
+				el( 'div', blockProps,
+					autorId
+						? el( SSR, {
+							key: String( autorId ),
+							block: 'kompas/autor-card',
+							attributes: props.attributes,
+						} )
+						: el( 'div', {
+							style: { padding: '1rem', background: '#f5f5f5', border: '1px dashed #ccc', textAlign: 'center', fontSize: '0.875rem', color: '#777' },
+						}, 'Autor Card — izaberi autora u bočnom panelu' )
+				)
+			);
+		},
+		save: function () { return null; },
+	} );
+
 	blocks.registerBlockType( 'kompas/video-grid', {
 		edit: function( props ) {
 			var blockProps   = useBlockProps();
