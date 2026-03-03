@@ -840,12 +840,13 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_tabs_script' );
 function kompas_render_tabs_block( $attributes ) {
 	$count = isset( $attributes['count'] ) ? max( 1, (int) $attributes['count'] ) : 6;
 
-	$najnovije_url  = ! empty( $attributes['najnovijeUrl'] )  ? esc_url( $attributes['najnovijeUrl'] )  : '';
+	$najnovije_url   = ! empty( $attributes['najnovijeUrl'] )   ? esc_url( $attributes['najnovijeUrl'] )   : '';
 	$najcitanije_url = ! empty( $attributes['najcitanijeUrl'] ) ? esc_url( $attributes['najcitanijeUrl'] ) : '';
 
-	$najnovije_ids  = ! empty( $attributes['najnovijePostIds'] ) ? array_map( 'absint', $attributes['najnovijePostIds'] ) : array();
+	$najnovije_ids   = ! empty( $attributes['najnovijePostIds'] )   ? array_map( 'absint', $attributes['najnovijePostIds'] )   : array();
 	$najcitanije_ids = ! empty( $attributes['najcitanijePostIds'] ) ? array_map( 'absint', $attributes['najcitanijePostIds'] ) : array();
 
+	// Fetch najnovije posts.
 	$najnovije = array();
 	if ( ! empty( $najnovije_ids ) ) {
 		$najnovije = get_posts( array(
@@ -869,36 +870,7 @@ function kompas_render_tabs_block( $attributes ) {
 		);
 	}
 
-	// Nav-link mode: URL-ovi su postavljeni → tab dugmad postaju linkovi, prikazuje se samo Najnovije panel.
-	if ( $najnovije_url || $najcitanije_url ) {
-		ob_start();
-		$active_style   = 'font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);display:inline-block;border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark);text-decoration:none;font-family:inherit';
-		$inactive_style = 'font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);display:inline-block;border-bottom:3px solid transparent;color:var(--wp--preset--color--muted);text-decoration:none;font-family:inherit';
-		?>
-		<div class="kompas-tabs-section" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60)">
-			<div class="kompas-tabs-heading kompas-section-topline" style="margin-bottom:var(--wp--preset--spacing--50)">
-				<div class="kompas-tabs-nav" style="display:flex;gap:0;border-bottom:1px solid var(--wp--preset--color--border)">
-					<?php if ( $najnovije_url ) : ?>
-					<a href="<?php echo $najnovije_url; ?>" style="<?php echo esc_attr( $active_style ); ?>">НАЈНОВИЈЕ</a>
-					<?php else : ?>
-					<span style="<?php echo esc_attr( $active_style ); ?>">НАЈНОВИЈЕ</span>
-					<?php endif; ?>
-					<?php if ( $najcitanije_url ) : ?>
-					<a href="<?php echo $najcitanije_url; ?>" style="<?php echo esc_attr( $inactive_style ); ?>">НАЈЧИТАНИЈЕ</a>
-					<?php else : ?>
-					<span style="<?php echo esc_attr( $inactive_style ); ?>">НАЈЧИТАНИЈЕ</span>
-					<?php endif; ?>
-				</div>
-			</div>
-			<div class="kompas-tab-panel is-active" data-panel="najnovije">
-				<?php echo kompas_render_posts_grid( $najnovije ); ?>
-			</div>
-		</div>
-		<?php
-		return ob_get_clean();
-	}
-
-	// Default: toggle tab ponašanje.
+	// Fetch najcitanije posts.
 	$najcitanije = array();
 	if ( ! empty( $najcitanije_ids ) ) {
 		$najcitanije = get_posts( array(
@@ -922,14 +894,29 @@ function kompas_render_tabs_block( $attributes ) {
 		);
 	}
 
+	$btn_base   = 'font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;cursor:pointer;font-family:inherit;';
+	$link_style = 'font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--wp--preset--color--muted);text-decoration:none;white-space:nowrap;padding-bottom:var(--wp--preset--spacing--20);display:inline-block;';
+
 	ob_start();
 	?>
 	<div class="kompas-tabs-section" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60)">
 
 		<div class="kompas-tabs-heading kompas-section-topline" style="margin-bottom:var(--wp--preset--spacing--50)">
-			<div class="kompas-tabs-nav" style="display:flex;gap:0;border-bottom:1px solid var(--wp--preset--color--border)">
-				<button class="kompas-tab-btn is-active" data-tab="najnovije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark);cursor:pointer;font-family:inherit">НАЈНОВИЈЕ</button>
-				<button class="kompas-tab-btn" data-tab="najcitanije" type="button" style="font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;padding:0 0 var(--wp--preset--spacing--20);margin-right:var(--wp--preset--spacing--50);background:none;border:none;border-bottom:3px solid transparent;color:var(--wp--preset--color--muted);cursor:pointer;font-family:inherit">НАЈЧИТАНИЈЕ</button>
+			<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--wp--preset--color--border)">
+				<div class="kompas-tabs-nav" style="display:flex;gap:0">
+					<button class="kompas-tab-btn is-active" data-tab="najnovije" type="button" style="<?php echo esc_attr( $btn_base ); ?>border-bottom:3px solid var(--wp--preset--color--primary);color:var(--wp--preset--color--dark)">НАЈНОВИЈЕ</button>
+					<button class="kompas-tab-btn" data-tab="najcitanije" type="button" style="<?php echo esc_attr( $btn_base ); ?>border-bottom:3px solid transparent;color:var(--wp--preset--color--muted)">НАЈЧИТАНИЈЕ</button>
+				</div>
+				<?php if ( $najnovije_url || $najcitanije_url ) : ?>
+				<div class="kompas-tabs-viewall" style="display:flex;gap:var(--wp--preset--spacing--40)">
+					<?php if ( $najnovije_url ) : ?>
+					<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">ПОГЛЕДАЈ СВЕ НАЈНОВИЈЕ →</a>
+					<?php endif; ?>
+					<?php if ( $najcitanije_url ) : ?>
+					<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">ПОГЛЕДАЈ СВЕ НАЈЧИТАНИЈЕ →</a>
+					<?php endif; ?>
+				</div>
+				<?php endif; ?>
 			</div>
 		</div>
 
@@ -940,7 +927,6 @@ function kompas_render_tabs_block( $attributes ) {
 		<div class="kompas-tab-panel" data-panel="najcitanije" style="display:none">
 			<?php echo kompas_render_posts_grid( $najcitanije ); ?>
 		</div>
-
 
 	</div>
 	<?php
@@ -1234,9 +1220,9 @@ function kompas_render_archive_layout( $attributes = array() ) {
 			'post_status'    => 'publish',
 		) );
 	} else {
-		// Fallback: latest 7 from current archive query.
+		// Fallback: latest 9 from current archive query.
 		$hero_args = array_merge( $wp_query->query_vars, array(
-			'posts_per_page' => 7,
+			'posts_per_page' => 9,
 			'paged'          => 1,
 			'post_status'    => 'publish',
 		) );
@@ -1269,8 +1255,8 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		<?php
 		// ── HERO SECTION: samo na prvoj strani ──────────────────
 		$hero_main   = isset( $hero_posts[0] ) ? $hero_posts[0] : null;
-		$hero_horiz  = array_slice( $hero_posts, 1, 2 );
-		$hero_side   = array_slice( $hero_posts, 3, 4 );
+		$hero_horiz  = array_slice( $hero_posts, 1, 4 );
+		$hero_side   = array_slice( $hero_posts, 5, 4 );
 		?>
 		<div class="kompas-archive-hero">
 

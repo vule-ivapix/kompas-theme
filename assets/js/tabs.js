@@ -30,6 +30,12 @@
 							panel.classList.remove( 'is-active' );
 						}
 					} );
+
+					// Update "view all" links.
+					var viewAllLinks = section.querySelectorAll( '.kompas-tabs-viewall__link' );
+					viewAllLinks.forEach( function ( link ) {
+						link.style.display = link.getAttribute( 'data-for' ) === target ? '' : 'none';
+					} );
 				} );
 			} );
 		} );

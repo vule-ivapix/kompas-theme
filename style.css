@@ -1182,24 +1182,22 @@ body.kompas-mobile-menu-open {
 		margin: 0 !important;
 	}
 
-	/* Related posts: all horizontal on mobile. */
+	/* Related posts: 2x2 grid on mobile. */
 	.kompas-related-posts-query .wp-block-post-template {
-		display: flex;
-		flex-direction: column;
-		gap: var(--wp--preset--spacing--40);
+		display: grid !important;
+		grid-template-columns: 1fr 1fr !important;
+		gap: var(--wp--preset--spacing--40) !important;
 	}
 
 	.kompas-related-posts-query .wp-block-post {
 		display: flex;
-		flex-direction: row;
-		align-items: flex-start;
-		gap: var(--wp--preset--spacing--40);
+		flex-direction: column;
+		gap: var(--wp--preset--spacing--20);
 		margin: 0 !important;
 	}
 
 	.kompas-related-posts-query .wp-block-post-featured-image {
-		flex: 0 0 38%;
-		max-width: 38%;
+		width: 100%;
 		margin: 0 !important;
 	}
 
@@ -1209,9 +1207,8 @@ body.kompas-mobile-menu-open {
 	}
 
 	.kompas-related-posts-query .wp-block-post-title {
-		flex: 1 1 auto;
 		margin: 0 !important;
-		font-size: 1rem !important;
+		font-size: 0.875rem !important;
 	}
 }
 
@@ -1454,25 +1451,32 @@ body.kompas-mobile-menu-open {
 
 /* 2 horizontal posts below main */
 .kompas-archive-hero-horiz {
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
 	gap: var(--wp--preset--spacing--40);
 }
 
 .kompas-archive-card-h {
 	display: flex;
-	gap: var(--wp--preset--spacing--40);
-	align-items: flex-start;
+	flex-direction: column;
+	gap: var(--wp--preset--spacing--30);
 	padding-bottom: var(--wp--preset--spacing--40);
 	border-bottom: 1px solid var(--wp--preset--color--border);
 }
 
 .kompas-archive-card-h__img {
-	flex: 0 0 40%;
+	flex: none;
+	width: 100%;
+}
+
+.kompas-archive-card-h__img img {
+	width: 100%;
+	height: auto;
+	display: block;
 }
 
 .kompas-archive-card-h__text {
-	flex: 1 1 0%;
+	flex: none;
 	min-width: 0;
 }
 
@@ -1713,13 +1717,6 @@ body.kompas-mobile-menu-open {
 }
 
 @media (max-width: 480px) {
-	.kompas-archive-card-h {
-		flex-direction: column;
-	}
-
-	.kompas-archive-card-h__img {
-		flex: 0 0 auto;
-	}
 
 	.kompas-archive-grid-row--4 {
 		grid-template-columns: 1fr;
@@ -2186,7 +2183,7 @@ body.kompas-mobile-menu-open {
    ======================================================================== */
 
 .kompas-rec-urednika {
-	padding: 0 0 var(--wp--preset--spacing--50) 0;
+	padding: 0 0 0 0;
 	margin-top: 0;
 }
 
@@ -2316,6 +2313,10 @@ body.kompas-mobile-menu-open {
 	font-style: italic;
 }
 
+figure.alignwide.wp-block-post-featured-image .kompas-image-source {
+    bottom: 27px;
+}
+
 /* ========================================================================
    Lightbox
    ======================================================================== */
@@ -2383,7 +2384,7 @@ body.kompas-mobile-menu-open {
 
 .kompas-video-card__thumb {
 	position: relative;
-	aspect-ratio: 9 / 16;
+	aspect-ratio: 16 / 9;
 	overflow: hidden;
 	background: #111;
 }

@@ -531,7 +531,7 @@
 							onChange: function( v ) { props.setAttributes( { najcitanijeUrl: v } ); },
 						} ),
 						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '4px', marginBottom: '12px' } },
-							'Kad su URL-ovi popunjeni, tab dugmad postaju linkovi ka arhivskim stranicama.'
+							'Kad su URL-ovi popunjeni, pojavljuje se "Погледај све" link uz aktivni tab.'
 						),
 						el( HeroPostPicker, {
 							title: 'Najnovije (ručni izbor)',
