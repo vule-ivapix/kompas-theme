@@ -2476,7 +2476,7 @@ function kompas_truncate_title( $title, $length = 60 ) {
 		return $title;
 	}
 
-	return mb_substr( $title, 0, $length ) . '...';
+	return mb_substr( $title, 0, $length );
 }
 
 /**
@@ -2848,6 +2848,43 @@ function kompas_enqueue_publish_guard() {
 add_action( 'enqueue_block_editor_assets', 'kompas_enqueue_publish_guard' );
 
 /**
+ * Enqueue hard title limit script on post edit screens (classic + block).
+ */
+function kompas_enqueue_admin_title_limit( $hook ) {
+	if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+		return;
+	}
+
+	$screen = get_current_screen();
+	if ( ! $screen || ! post_type_supports( $screen->post_type, 'title' ) ) {
+		return;
+	}
+
+	$path = get_theme_file_path( 'assets/js/admin-title-limit.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+
+	wp_enqueue_script(
+		'kompas-admin-title-limit',
+		get_theme_file_uri( 'assets/js/admin-title-limit.js' ),
+		array(),
+		$ver,
+		true
+	);
+
+	wp_localize_script(
+		'kompas-admin-title-limit',
+		'kompasAdminTitleLimit',
+		array(
+			'max' => 60,
+		)
+	);
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_admin_title_limit' );
+
+/**
  * Dodaj "Izvor fotografije" polje u media editor.
  */
 function kompas_attachment_source_field( $form_fields, $post ) {
@@ -2890,7 +2927,7 @@ function kompas_inject_image_source_overlay( $block_content, $source ) {
 		return $block_content;
 	}
 
-	$source_html = '<span class="kompas-image-source">' . esc_html( $source ) . '</span>';
+	$source_html = '<span class="kompas-image-source"><span class="kompas-image-source-label">ФОТО:</span> ' . esc_html( $source ) . '</span>';
 	$updated     = preg_replace_callback(
 		'/<img\b[^>]*>/i',
 		static function ( $matches ) use ( $source_html ) {

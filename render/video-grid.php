@@ -33,7 +33,7 @@ if ( ! $query->have_posts() ) {
 			$thumb_url = 'https://img.youtube.com/vi/' . $yt_id . '/hqdefault.jpg';
 		}
 		$title = get_the_title();
-		$desc  = get_the_excerpt();
+		$desc  = wp_strip_all_tags( get_the_content() );
 		$date  = get_the_date( 'd.m.Y. H:i' );
 	?>
 	<div class="kompas-video-card"

@@ -38,7 +38,7 @@ $archive_url = get_post_type_archive_link( 'kompas_video' );
 				$thumb_url = 'https://img.youtube.com/vi/' . $yt_id . '/hqdefault.jpg';
 			}
 			$title = get_the_title( $video->ID );
-			$desc  = get_the_excerpt( $video->ID );
+			$desc  = wp_strip_all_tags( get_post_field( 'post_content', $video->ID ) );
 			$date  = get_the_date( 'd.m.Y. H:i', $video->ID );
 		?>
 		<div class="kompas-video-card"

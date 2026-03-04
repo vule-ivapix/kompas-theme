@@ -16,6 +16,7 @@
 <!-- wp:column {"width":"75%","className":"kompas-hero__main"} -->
 <div class="wp-block-column kompas-hero__main" style="flex-basis:75%">
 <!-- wp:kompas/homepage-hero /-->
+<!-- wp:kompas/video /-->
 </div>
 <!-- /wp:column -->
 
@@ -31,7 +32,6 @@
 </div>
 <!-- /wp:columns -->
 
-<!-- wp:kompas/video /-->
 
 </div>
 <!-- /wp:group -->

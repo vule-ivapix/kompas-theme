@@ -25,6 +25,14 @@
 		"categorySlug": {
 			"type": "string",
 			"default": "rec-urednika"
+		},
+		"imageId": {
+			"type": "number",
+			"default": 0
+		},
+		"imageUrl": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"textdomain": "kompas",

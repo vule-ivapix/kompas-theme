@@ -10,7 +10,7 @@
 ( function () {
 	'use strict';
 
-	if ( ! wp || ! wp.data ) {
+	if ( 'undefined' === typeof wp || ! wp.data ) {
 		return;
 	}
 
@@ -52,6 +52,12 @@
 		} );
 		var title = editor.getEditedPostAttribute( 'title' ) || '';
 
+		// Hard fallback at data-layer level in case any DOM pathway misses.
+		if ( title.length > TITLE_MAX ) {
+			title = title.slice( 0, TITLE_MAX );
+			dispatch( 'core/editor' ).editPost( { title: title } );
+		}
+
 		var errors = [];
 		if ( ! featuredImageId ) {
 			errors.push( 'naslovna slika nije postavljena' );
@@ -90,50 +96,111 @@
 	}
 
 	wp.domReady( function () {
-		var tries = 0;
-		var timer = setInterval( function () {
-			// Gutenberg renders the title as a <textarea> (classic) or a
-			// contenteditable element (newer builds). Try both selectors.
-			var el = document.querySelector( '.editor-post-title__input' )
-			      || document.querySelector( '[aria-label="Add title"]' )
-			      || document.querySelector( '[aria-label="Dodaj naslov"]' );
+		var rafPending = false;
 
-			if ( el ) {
-				clearInterval( timer );
-				initTitleLimit( el );
-			} else if ( ++tries > 40 ) {
-				clearInterval( timer );
+		function scheduleBind() {
+			if ( rafPending ) {
+				return;
 			}
-		}, 250 );
+			rafPending = true;
+			window.requestAnimationFrame( function () {
+				rafPending = false;
+				bindTitleLimit();
+			} );
+		}
+
+		scheduleBind();
+
+		var observer = new MutationObserver( function () {
+			scheduleBind();
+		} );
+
+		observer.observe( document.body, {
+			childList: true,
+			subtree: true,
+		} );
 	} );
 
+	function bindTitleLimit() {
+		var selectors = [
+			'.editor-post-title__input',
+			'[data-type="core/post-title"] [contenteditable="true"]',
+			'h1.wp-block-post-title[contenteditable="true"]',
+			'[aria-label="Add title"]',
+			'[aria-label="Dodaj naslov"]',
+			'[aria-label="Dodajte naslov"]',
+		];
+
+		selectors.forEach( function ( selector ) {
+			document.querySelectorAll( selector ).forEach( function ( el ) {
+				initTitleLimit( el );
+			} );
+		} );
+	}
+
 	function initTitleLimit( el ) {
+		if ( el.dataset.kompasTitleLimitBound === '1' ) {
+			return;
+		}
+		el.dataset.kompasTitleLimitBound = '1';
+
 		if ( 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName ) {
 			// Native maxlength — browser enforces it hard.
 			el.setAttribute( 'maxlength', TITLE_MAX );
-		} else {
-			// contenteditable: truncate on input.
 			el.addEventListener( 'input', function () {
+				if ( el.value.length > TITLE_MAX ) {
+					el.value = el.value.slice( 0, TITLE_MAX );
+				}
+			} );
+		} else {
+			// contenteditable: beforeinput as primary block.
+			el.addEventListener( 'beforeinput', function ( e ) {
 				var text = el.textContent || '';
-				if ( text.length <= TITLE_MAX ) {
+				var isDelete = e.inputType && (
+					e.inputType.indexOf( 'delete' ) === 0 ||
+					e.inputType === 'historyUndo' ||
+					e.inputType === 'historyRedo'
+				);
+				if ( isDelete ) {
 					return;
 				}
-				// Truncate and restore cursor to end.
-				el.textContent = text.slice( 0, TITLE_MAX );
-				var range = document.createRange();
-				range.selectNodeContents( el );
-				range.collapse( false );
-				var sel = window.getSelection();
-				sel.removeAllRanges();
-				sel.addRange( range );
+
+				var selectedLen = getSelectedLengthInside( el );
+				var incomingLen = getIncomingLength( e );
+				var nextLen = text.length - selectedLen + incomingLen;
+
+				if ( nextLen > TITLE_MAX ) {
+					e.preventDefault();
+				}
+			} );
+
+			// Fallback truncation: handles paste and any case beforeinput misses.
+			el.addEventListener( 'input', function () {
+				enforceContentEditableLimit( el );
+			} );
+
+			// Fallback for browsers where beforeinput is inconsistent.
+			el.addEventListener( 'keydown', function ( e ) {
+				if ( e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 ) {
+					return;
+				}
+
+				var text = el.textContent || '';
+				var selectedLen = getSelectedLengthInside( el );
+				if ( text.length - selectedLen >= TITLE_MAX ) {
+					e.preventDefault();
+				}
 			} );
 		}
 
 		// Character counter element.
-		var counter = document.createElement( 'div' );
-		counter.id  = 'kompas-title-counter';
-		counter.style.cssText = 'font-size:11px;text-align:right;padding:3px 4px 0;transition:color .15s;';
-		el.parentNode.insertBefore( counter, el.nextSibling );
+		var counter = el.nextElementSibling;
+		if ( ! counter || counter.dataset.kompasTitleCounter !== '1' ) {
+			counter = document.createElement( 'div' );
+			counter.dataset.kompasTitleCounter = '1';
+			counter.style.cssText = 'font-size:11px;text-align:right;padding:3px 4px 0;transition:color .15s;';
+			el.parentNode.insertBefore( counter, el.nextSibling );
+		}
 
 		function updateCounter() {
 			var len = ( 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName )
@@ -145,6 +212,56 @@
 
 		el.addEventListener( 'input', updateCounter );
 		updateCounter();
+	}
+
+	function enforceContentEditableLimit( el ) {
+		var text = el.textContent || '';
+		if ( text.length <= TITLE_MAX ) {
+			return;
+		}
+
+		el.textContent = text.slice( 0, TITLE_MAX );
+		moveCaretToEnd( el );
+	}
+
+	function moveCaretToEnd( el ) {
+		var range = document.createRange();
+		range.selectNodeContents( el );
+		range.collapse( false );
+
+		var sel = window.getSelection();
+		if ( ! sel ) {
+			return;
+		}
+
+		sel.removeAllRanges();
+		sel.addRange( range );
+	}
+
+	function getIncomingLength( event ) {
+		if ( 'string' === typeof event.data ) {
+			return event.data.length;
+		}
+
+		if ( event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak' ) {
+			return 1;
+		}
+
+		return 1;
+	}
+
+	function getSelectedLengthInside( el ) {
+		var sel = window.getSelection();
+		if ( ! sel || sel.rangeCount === 0 ) {
+			return 0;
+		}
+
+		var range = sel.getRangeAt( 0 );
+		if ( ! el.contains( range.startContainer ) || ! el.contains( range.endContainer ) ) {
+			return 0;
+		}
+
+		return sel.toString().length;
 	}
 
 } )();

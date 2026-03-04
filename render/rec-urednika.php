@@ -6,6 +6,7 @@ $post_id       = ! empty( $attributes['postId'] ) ? (int) $attributes['postId'] 
 $title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ УРЕДНИКА';
 $link_text     = ! empty( $attributes['linkText'] ) ? $attributes['linkText'] : 'ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ';
 $category_slug = ! empty( $attributes['categorySlug'] ) ? $attributes['categorySlug'] : 'rec-urednika';
+$image_url     = ! empty( $attributes['imageUrl'] ) ? $attributes['imageUrl'] : '';
 
 if ( $post_id ) {
 	$post = get_post( $post_id );
@@ -48,5 +49,9 @@ if ( $cat ) {
 
 	<?php if ( $cat_link ) : ?>
 	<a href="<?php echo esc_url( $cat_link ); ?>" class="kompas-rec-urednika__more"><?php echo esc_html( $link_text ); ?></a>
+	<?php endif; ?>
+
+	<?php if ( $image_url ) : ?>
+	<img src="<?php echo esc_url( $image_url ); ?>" alt="" class="kompas-rec-urednika__image" style="width:100%;height:auto;display:block;margin-top:1rem;" />
 	<?php endif; ?>
 </div>

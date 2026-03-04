@@ -634,6 +634,8 @@
 		var _r   = useState( [] );     var results     = _r[0]; var setResults     = _r[1];
 		var _l   = useState( false );  var loading     = _l[0]; var setLoading     = _l[1];
 		var _sp  = useState( [] );     var selPosts    = _sp[0]; var setSelPosts   = _sp[1];
+		var _di  = useState( -1 );     var dragIdx     = _di[0]; var setDragIdx     = _di[1];
+		var _doi = useState( -1 );     var dragOverIdx = _doi[0]; var setDragOverIdx = _doi[1];
 
 		// Load titles for selected IDs.
 		useEffect( function() {
@@ -679,11 +681,14 @@
 		function removePost( id ) {
 			props.onChange( selectedIds.filter( function( x ) { return x !== id; } ) );
 		}
-		function movePost( idx, dir ) {
-			var a = selectedIds.slice(); var t = idx + dir;
-			if ( t < 0 || t >= a.length ) return;
-			var tmp = a[idx]; a[idx] = a[t]; a[t] = tmp;
+		function handleDrop( targetIdx ) {
+			if ( dragIdx === -1 || dragIdx === targetIdx ) { setDragIdx(-1); setDragOverIdx(-1); return; }
+			var a   = selectedIds.slice();
+			var tmp = a.splice( dragIdx, 1 )[0];
+			a.splice( targetIdx, 0, tmp );
 			props.onChange( a );
+			setDragIdx( -1 );
+			setDragOverIdx( -1 );
 		}
 
 		var filtered = results.filter( function( p ) { return selectedIds.indexOf( p.id ) === -1; } );
@@ -694,12 +699,16 @@
 						title + ' (' + selPosts.length + '/' + maxPosts + '):'
 					),
 				selPosts.map( function( post, i ) {
-					return el( 'div', { key: post.id, style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', marginBottom: '4px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px' } },
+					return el( 'div', { key: post.id, draggable: true,
+						onDragStart: function() { setDragIdx(i); },
+						onDragOver:  function(e) { e.preventDefault(); setDragOverIdx(i); },
+						onDrop:      function(e) { e.preventDefault(); handleDrop(i); },
+						onDragEnd:   function() { setDragIdx(-1); setDragOverIdx(-1); },
+						style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', marginBottom: '4px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px', opacity: dragIdx === i ? 0.4 : 1, borderTop: dragOverIdx === i && dragIdx !== i ? '2px solid #e82d34' : '2px solid transparent' } },
+						el( 'span', { style: { cursor: 'grab', color: '#aaa', fontSize: '14px', userSelect: 'none', marginRight: '4px', flexShrink: 0 } }, '⠷' ),
 						el( 'span', { style: { color: '#757575', fontSize: '10px', minWidth: '18px' } }, (i+1) + '.' ),
 						el( 'span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, post.title.rendered ),
 						el( 'div', { style: { display: 'flex', gap: '2px', flexShrink: 0 } },
-							el( Button, { icon: 'arrow-up-alt2', size: 'small', disabled: i === 0, onClick: function() { movePost(i,-1); }, style: { minWidth:'24px', height:'24px', padding:0 } } ),
-							el( Button, { icon: 'arrow-down-alt2', size: 'small', disabled: i === selPosts.length-1, onClick: function() { movePost(i,1); }, style: { minWidth:'24px', height:'24px', padding:0 } } ),
 							el( Button, { icon: 'no-alt', size: 'small', isDestructive: true, onClick: function() { removePost( post.id ); }, style: { minWidth:'24px', height:'24px', padding:0 } } )
 						)
 					);
@@ -1150,6 +1159,8 @@
 		edit: function( props ) {
 			var blockProps = useBlockProps();
 			var postId     = props.attributes.postId || 0;
+			var imageId    = props.attributes.imageId  || 0;
+			var imageUrl   = props.attributes.imageUrl || '';
 
 			// Reuse HeroPostPicker with max=1, convert single-element array.
 			var selectedIds = postId ? [ postId ] : [];
@@ -1181,6 +1192,35 @@
 						} ),
 						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
 							'Izaberite post koji će biti prikazan. Ako nije izabran, uzima se najnoviji iz kategorije.'
+						),
+						el( 'hr', { style: { margin: '12px 0' } } ),
+						el( 'p', { style: { fontWeight: 600, marginBottom: '6px' } }, 'Slika ispod bloka' ),
+						el( MediaUploadCheck, null,
+							el( MediaUpload, {
+								onSelect: function( media ) {
+									props.setAttributes( {
+										imageId:  media && media.id  ? media.id  : 0,
+										imageUrl: media && media.url ? media.url : '',
+									} );
+								},
+								allowedTypes: [ 'image' ],
+								value: imageId,
+								render: function( obj ) {
+									return el( Button, {
+										variant: imageUrl ? 'secondary' : 'primary',
+										onClick: obj.open,
+									}, imageUrl ? 'Promeni sliku' : 'Odaberi sliku' );
+								},
+							} )
+						),
+						imageUrl && el( 'div', { style: { marginTop: '8px' } },
+							el( 'img', { src: imageUrl, style: { width: '100%', height: 'auto', display: 'block', marginBottom: '6px' } } ),
+							el( Button, {
+								isDestructive: true,
+								onClick: function() {
+									props.setAttributes( { imageId: 0, imageUrl: '' } );
+								},
+							}, 'Ukloni sliku' )
 						)
 					)
 				),
