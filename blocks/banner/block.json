@@ -25,6 +25,14 @@
 		"imageAlt": {
 			"type": "string",
 			"default": ""
+		},
+		"linkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"linkTarget": {
+			"type": "string",
+			"default": "_blank"
 		}
 	},
 	"textdomain": "kompas",

@@ -1027,19 +1027,23 @@
 		save: function() { return null; },
 	} );
 
-	/* ── Banner Placeholder ────────────────────────────────── */
-	var SelectControl = components.SelectControl;
+	/* ── Banner ─────────────────────────────────────────────── */
+	var SelectControl  = components.SelectControl;
+	var ToggleControl  = components.ToggleControl;
+	var BannerTextCtrl = components.TextControl;
 
-		blocks.registerBlockType( 'kompas/banner', {
-			edit: function( props ) {
-				var blockProps = useBlockProps();
-				var variant    = props.attributes.variant || 'horizontal';
-				var imageUrl   = props.attributes.imageUrl || '';
-				var imageId    = props.attributes.imageId || 0;
+	blocks.registerBlockType( 'kompas/banner', {
+		edit: function( props ) {
+			var blockProps  = useBlockProps();
+			var variant     = props.attributes.variant || 'horizontal';
+			var imageUrl    = props.attributes.imageUrl || '';
+			var imageId     = props.attributes.imageId || 0;
+			var linkUrl     = props.attributes.linkUrl || '';
+			var linkTarget  = props.attributes.linkTarget || '_blank';
 
-				return el( element.Fragment, null,
-					el( InspectorControls, null,
-						el( PanelBody, { title: 'Banner podešavanja', initialOpen: true },
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Banner podešavanja', initialOpen: true },
 						el( SelectControl, {
 							label: 'Varijanta',
 							value: variant,
@@ -1047,51 +1051,62 @@
 								{ label: 'Horizontalni', value: 'horizontal' },
 								{ label: 'Kvadratni',    value: 'square' },
 							],
-								onChange: function( v ) {
-									props.setAttributes( { variant: v } );
-								},
-							} ),
-							el( MediaUploadCheck, null,
-								el( MediaUpload, {
-									onSelect: function( media ) {
-										props.setAttributes( {
-											imageId: media && media.id ? media.id : 0,
-											imageUrl: media && media.url ? media.url : '',
-											imageAlt: media && media.alt ? media.alt : '',
-										} );
-									},
-									allowedTypes: [ 'image' ],
-									value: imageId,
-									render: function( obj ) {
-										return el( Button, {
-											variant: imageUrl ? 'secondary' : 'primary',
-											onClick: obj.open,
-										}, imageUrl ? 'Promeni sliku' : 'Odaberi sliku' );
-									},
-								} )
-							),
-							imageUrl && el( Button, {
-								isDestructive: true,
-								onClick: function() {
+							onChange: function( v ) {
+								props.setAttributes( { variant: v } );
+							},
+						} ),
+						el( MediaUploadCheck, null,
+							el( MediaUpload, {
+								onSelect: function( media ) {
 									props.setAttributes( {
-										imageId: 0,
-										imageUrl: '',
-										imageAlt: '',
+										imageId:  media && media.id  ? media.id  : 0,
+										imageUrl: media && media.url ? media.url : '',
+										imageAlt: media && media.alt ? media.alt : '',
 									} );
 								},
-								style: { marginTop: '8px' },
-							}, 'Ukloni sliku' )
-						)
-					),
-					el( 'div', blockProps,
-						el( SSR, {
-							key:        JSON.stringify( props.attributes ),
-							block:      'kompas/banner',
-							attributes: props.attributes,
+								allowedTypes: [ 'image' ],
+								value: imageId,
+								render: function( obj ) {
+									return el( Button, {
+										variant: imageUrl ? 'secondary' : 'primary',
+										onClick: obj.open,
+									}, imageUrl ? 'Promeni sliku' : 'Odaberi sliku' );
+								},
+							} )
+						),
+						imageUrl && el( Button, {
+							isDestructive: true,
+							onClick: function() {
+								props.setAttributes( { imageId: 0, imageUrl: '', imageAlt: '' } );
+							},
+							style: { marginTop: '8px' },
+						}, 'Ukloni sliku' ),
+						el( BannerTextCtrl, {
+							label: 'Link URL',
+							value: linkUrl,
+							type: 'url',
+							placeholder: 'https://',
+							onChange: function( v ) { props.setAttributes( { linkUrl: v } ); },
+							style: { marginTop: '16px' },
+						} ),
+						el( ToggleControl, {
+							label: 'Otvori u novom tabu',
+							checked: linkTarget === '_blank',
+							onChange: function( v ) {
+								props.setAttributes( { linkTarget: v ? '_blank' : '_self' } );
+							},
 						} )
 					)
-				);
-			},
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      'kompas/banner',
+						attributes: props.attributes,
+					} )
+				)
+			);
+		},
 		save: function() { return null; },
 	} );
 

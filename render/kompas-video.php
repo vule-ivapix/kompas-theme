@@ -51,7 +51,7 @@ $archive_url = get_post_type_archive_link( 'kompas_video' );
 				<?php if ( $thumb_url ) : ?>
 				<img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
 				<?php endif; ?>
-				<span class="kompas-video-card__play" aria-hidden="true">&#9654;</span>
+				<span class="kompas-video-card__play" aria-hidden="true"></span>
 			</div>
 			<h4 class="kompas-video-card__title"><?php echo esc_html( $title ); ?></h4>
 		</div>
