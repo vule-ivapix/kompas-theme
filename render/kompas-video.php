@@ -39,7 +39,7 @@ $archive_url = get_post_type_archive_link( 'kompas_video' );
 			}
 			$title = get_the_title( $video->ID );
 			$desc  = get_the_excerpt( $video->ID );
-			$date  = get_the_date( '', $video->ID );
+			$date  = get_the_date( 'd.m.Y. H:i', $video->ID );
 		?>
 		<div class="kompas-video-card"
 			data-video-url="<?php echo esc_attr( $video_url ); ?>"

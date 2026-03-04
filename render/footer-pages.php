@@ -51,8 +51,9 @@ if ( empty( $pages ) ) {
 <nav class="kompas-footer-pages-nav" aria-label="Футер странице">
 	<ul class="kompas-footer-pages-nav__list">
 		<?php foreach ( $pages as $page ) : ?>
+			<?php $is_active = is_page() && (int) get_queried_object_id() === $page->ID; ?>
 			<li class="kompas-footer-pages-nav__item">
-				<a href="<?php echo esc_url( get_permalink( $page ) ); ?>" class="kompas-footer-pages-nav__link">
+				<a href="<?php echo esc_url( get_permalink( $page ) ); ?>" class="kompas-footer-pages-nav__link<?php echo $is_active ? ' is-active' : ''; ?>">
 					<?php echo esc_html( mb_strtoupper( get_the_title( $page ) ) ); ?>
 				</a>
 			</li>

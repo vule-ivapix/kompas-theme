@@ -1,4 +1,18 @@
 ( function() {
+	var scrollY = 0;
+
+	function lockScroll() {
+		scrollY = window.scrollY;
+		document.body.style.top = '-' + scrollY + 'px';
+		document.body.classList.add( 'kompas-mobile-menu-open' );
+	}
+
+	function unlockScroll() {
+		document.body.classList.remove( 'kompas-mobile-menu-open' );
+		document.body.style.top = '';
+		window.scrollTo( 0, scrollY );
+	}
+
 	function openOverlay( nav ) {
 		var overlay   = nav.querySelector( '.kompas-mobile-overlay' );
 		var hamburger = nav.querySelector( '.kompas-mobile-hamburger' );
@@ -8,7 +22,7 @@
 		nav.classList.add( 'is-open' );
 		overlay.classList.add( 'is-open' );
 		overlay.setAttribute( 'aria-hidden', 'false' );
-		document.body.classList.add( 'kompas-mobile-menu-open' );
+		lockScroll();
 	}
 
 	document.addEventListener( 'click', function( e ) {
@@ -25,7 +39,12 @@
 			nav.classList.toggle( 'is-open', ! open );
 			overlay.classList.toggle( 'is-open', ! open );
 			overlay.setAttribute( 'aria-hidden', open ? 'true' : 'false' );
-			document.body.classList.toggle( 'kompas-mobile-menu-open', ! open );
+
+			if ( open ) {
+				unlockScroll();
+			} else {
+				lockScroll();
+			}
 			return;
 		}
 

@@ -38,6 +38,15 @@
 					} );
 				} );
 			} );
+			// Initialize viewall links for the initially active tab.
+			var activeBtn = section.querySelector( '.kompas-tab-btn.is-active' );
+			if ( activeBtn ) {
+				var initTarget = activeBtn.getAttribute( 'data-tab' );
+				var initLinks = section.querySelectorAll( '.kompas-tabs-viewall__link' );
+				initLinks.forEach( function ( link ) {
+					link.style.display = link.getAttribute( 'data-for' ) === initTarget ? '' : 'none';
+				} );
+			}
 		} );
 	} );
 } )();

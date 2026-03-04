@@ -34,8 +34,9 @@ $query = new WP_Query( $query_args );
 	<?php if ( $query->have_posts() ) : ?>
 	<div class="kompas-post-list__grid">
 		<?php while ( $query->have_posts() ) : $query->the_post(); ?>
-		<article class="kompas-post-list__item">
-			<?php if ( has_post_thumbnail() ) : ?>
+		<?php $has_thumbnail = has_post_thumbnail(); ?>
+		<article class="kompas-post-list__item<?php echo $has_thumbnail ? '' : ' is-no-thumb'; ?>">
+			<?php if ( $has_thumbnail ) : ?>
 			<a class="kompas-post-list__thumb-link" href="<?php the_permalink(); ?>">
 				<img class="kompas-post-list__thumb"
 					src="<?php echo esc_url( get_the_post_thumbnail_url( null, 'medium_large' ) ); ?>"
@@ -64,6 +65,8 @@ $query = new WP_Query( $query_args );
 		'format'    => '?paged=%#%',
 		'current'   => $paged,
 		'total'     => $query->max_num_pages,
+		'mid_size'  => 1,
+		'end_size'  => 0,
 		'prev_text' => '&larr;',
 		'next_text' => '&rarr;',
 		'type'      => 'list',

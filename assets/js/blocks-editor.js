@@ -406,53 +406,64 @@
 		};
 	}
 
+	/**
+	 * Factory: read-only edit UI for menu-managed blocks.
+	 */
+	function makeMenuManagedEdit( blockName, menuLocation ) {
+		return function( props ) {
+			var blockProps = useBlockProps();
+
+			return el( element.Fragment, null,
+				el( InspectorControls, null,
+					el( PanelBody, { title: 'Menu upravljanje', initialOpen: true },
+						el(
+							'p',
+							{ style: { marginTop: 0 } },
+							'Sadržaj ovog bloka se uređuje kroz Appearance > Menus.'
+						),
+						el(
+							'p',
+							{ style: { margin: '8px 0' } },
+							'Location: ',
+							el( 'code', null, menuLocation )
+						),
+						el(
+							'a',
+							{
+								href: '/wp-admin/nav-menus.php',
+								target: '_blank',
+								rel: 'noopener noreferrer',
+							},
+							'Otvori Menus'
+						)
+					)
+				),
+				el( 'div', blockProps,
+					el( SSR, {
+						key:        JSON.stringify( props.attributes ),
+						block:      blockName,
+						attributes: props.attributes,
+					} )
+				)
+			);
+		};
+	}
+
 	/* ── Header Nav (categories) – sa redosledom ─────────────── */
 	blocks.registerBlockType( 'kompas/header-nav', {
-		edit: makeEdit( 'kompas/header-nav', 'categories', 'Kategorije za navigaciju', true ),
+		edit: makeMenuManagedEdit( 'kompas/header-nav', 'kompas-header-nav' ),
 		save: function() { return null; },
 	} );
 
 	/* ── Header Tags ─────────────────────────────────────────── */
 	blocks.registerBlockType( 'kompas/header-tags', {
-		edit: makeEdit(
-			'kompas/header-tags',
-			'tags',
-			'Tagovi za navigaciju',
-			true,
-			{
-				searchable: true,
-				searchPlaceholder: 'Pretraži sve tagove...',
-			}
-		),
+		edit: makeMenuManagedEdit( 'kompas/header-tags', 'kompas-header-tags' ),
 		save: function() { return null; },
 	} );
 
 	/* ── Footer Categories – sa redosledom ───────────────────── */
 	blocks.registerBlockType( 'kompas/footer-categories', {
-		edit: function( props ) {
-			var blockProps  = useBlockProps();
-			var selectedIds = props.attributes.selectedIds || [];
-
-			return el( element.Fragment, null,
-				el( InspectorControls, null,
-					el( SortableTermPicker, {
-						selectedIds: selectedIds,
-						restBase:    'categories',
-						label:       'Kategorije u footeru',
-						onChange:    function( next ) {
-							props.setAttributes( { selectedIds: next } );
-						},
-					} )
-				),
-				el( 'div', blockProps,
-					el( SSR, {
-						key:        JSON.stringify( props.attributes ),
-						block:      'kompas/footer-categories',
-						attributes: props.attributes,
-					} )
-				)
-			);
-		},
+		edit: makeMenuManagedEdit( 'kompas/footer-categories', 'kompas-footer-nav' ),
 		save: function() { return null; },
 	} );
 
@@ -1000,7 +1011,7 @@
 								},
 							} ),
 							el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-								'Ako ne izabereš postove, prikazuju se najnovije vesti.'
+								'Ako ne izabereš postove, prikazuju se slične vesti po kategorijama i tagovima, pa najnovije kao fallback.'
 							)
 						)
 					),

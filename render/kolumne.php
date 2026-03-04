@@ -5,25 +5,38 @@
 $post_ids = ! empty( $attributes['postIds'] ) ? array_map( 'absint', $attributes['postIds'] ) : array();
 $count    = isset( $attributes['count'] ) ? (int) $attributes['count'] : 3;
 
-// Fetch the kolumne category once (explicit slug arg bypasses the hidden-categories filter).
-$kolumne_cat = get_terms( array(
-	'taxonomy'   => 'category',
-	'slug'       => 'kolumne',
-	'number'     => 1,
-	'hide_empty' => false,
-) );
-$kolumne_term = ( ! empty( $kolumne_cat ) && ! is_wp_error( $kolumne_cat ) ) ? $kolumne_cat[0] : null;
+// Resolve kolumne category (sites may use either "kolumne" or "kolumna" slug).
+$kolumne_term = get_term_by( 'slug', 'kolumne', 'category' );
+if ( ! $kolumne_term || is_wp_error( $kolumne_term ) ) {
+	$kolumne_term = get_term_by( 'slug', 'kolumna', 'category' );
+}
+if ( ! $kolumne_term || is_wp_error( $kolumne_term ) ) {
+	$kolumne_cat = get_terms( array(
+		'taxonomy'   => 'category',
+		'name__like' => 'kolumn',
+		'number'     => 1,
+		'hide_empty' => false,
+	) );
+	$kolumne_term = ( ! empty( $kolumne_cat ) && ! is_wp_error( $kolumne_cat ) ) ? $kolumne_cat[0] : null;
+}
 
 $target = 3;
 
 // Load manually selected posts first.
 if ( ! empty( $post_ids ) ) {
-	$posts = get_posts( array(
+	$manual_args = array(
 		'post__in'       => $post_ids,
 		'orderby'        => 'post__in',
 		'posts_per_page' => count( $post_ids ),
 		'post_status'    => 'publish',
-	) );
+	);
+
+	// Keep the block output aligned with the kolumne single template routing.
+	if ( $kolumne_term ) {
+		$manual_args['category'] = (int) $kolumne_term->term_id;
+	}
+
+	$posts = get_posts( $manual_args );
 } else {
 	$posts = array();
 }

@@ -106,17 +106,24 @@ function kompas_register_autor_cpt() {
 			'not_found'          => 'Нема аутора',
 			'not_found_in_trash' => 'Нема аутора у смећу',
 		),
-		'public'             => false,
-		'publicly_queryable' => false,
-		'show_ui'            => true,
-		'show_in_menu'       => true,
-		'show_in_rest'       => true,
-		'rest_base'          => 'kompas_autor',
-		'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
-		'menu_icon'          => 'dashicons-businessperson',
-		'menu_position'      => 5,
-		'capability_type'    => 'post',
-		'has_archive'        => false,
+		'public'              => false,
+		'publicly_queryable'  => true,
+		'show_ui'             => true,
+		'show_in_menu'        => true,
+		'show_in_rest'        => true,
+		'rest_base'           => 'kompas_autor',
+		'supports'            => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
+		'menu_icon'           => 'dashicons-businessperson',
+		'menu_position'       => 5,
+		'capability_type'     => 'post',
+		'has_archive'         => false,
+		'exclude_from_search' => true,
+		'query_var'           => 'kompas_autor',
+		'rewrite'             => array(
+			'slug'       => 'autori',
+			'with_front' => false,
+		),
+		'show_in_nav_menus'   => false,
 	) );
 }
 add_action( 'init', 'kompas_register_autor_cpt' );
@@ -239,6 +246,36 @@ function kompas_exclude_current_from_related_posts_query( $query, $block, $page 
 add_filter( 'query_loop_block_query_vars', 'kompas_exclude_current_from_related_posts_query', 10, 3 );
 
 /**
+ * Restrict query loop on custom CPT author pages to posts assigned via kompas_author_id.
+ */
+function kompas_filter_cpt_author_archive_query( $query, $block, $page ) {
+	if ( ! is_singular( 'kompas_autor' ) ) {
+		return $query;
+	}
+
+	$cpt_author_id = (int) get_queried_object_id();
+	if ( $cpt_author_id <= 0 ) {
+		return $query;
+	}
+
+	$meta_query   = isset( $query['meta_query'] ) && is_array( $query['meta_query'] ) ? $query['meta_query'] : array();
+	$meta_query[] = array(
+		'key'     => KOMPAS_AUTHOR_ID_META_KEY,
+		'value'   => $cpt_author_id,
+		'compare' => '=',
+		'type'    => 'NUMERIC',
+	);
+
+	$query['post_type']           = 'post';
+	$query['post_status']         = 'publish';
+	$query['meta_query']          = $meta_query;
+	$query['ignore_sticky_posts'] = true;
+
+	return $query;
+}
+add_filter( 'query_loop_block_query_vars', 'kompas_filter_cpt_author_archive_query', 10, 3 );
+
+/**
  * Add theme support.
  */
 function kompas_setup() {
@@ -246,6 +283,7 @@ function kompas_setup() {
 	add_theme_support( 'editor-styles' );
 	add_theme_support( 'responsive-embeds' );
 	add_theme_support( 'post-thumbnails' );
+	add_editor_style( 'style.css' );
 
 	add_image_size( 'kompas-hero', 800, 500, true );
 	add_image_size( 'kompas-thumbnail', 400, 250, true );
@@ -254,6 +292,7 @@ function kompas_setup() {
 	register_nav_menus( array(
 		'kompas-header-nav'  => 'Главна навигација (категорије)',
 		'kompas-header-tags' => 'Секундарна навигација (тагови)',
+		'kompas-footer-nav'  => 'Футер навигација (категорије/линкови)',
 	) );
 }
 add_action( 'after_setup_theme', 'kompas_setup' );
@@ -794,6 +833,24 @@ function kompas_save_custom_author_meta( $post_id ) {
 add_action( 'save_post_post', 'kompas_save_custom_author_meta' );
 
 /**
+ * Get public archive-like URL for a custom CPT author.
+ */
+function kompas_get_cpt_author_archive_url( $cpt_author_id ) {
+	$cpt_author_id = (int) $cpt_author_id;
+	if ( $cpt_author_id <= 0 ) {
+		return '';
+	}
+
+	$cpt_post = get_post( $cpt_author_id );
+	if ( ! $cpt_post || 'kompas_autor' !== $cpt_post->post_type || 'publish' !== $cpt_post->post_status ) {
+		return '';
+	}
+
+	$url = get_permalink( $cpt_post );
+	return $url ? (string) $url : '';
+}
+
+/**
  * Replace post author name block output with manually entered author name.
  */
 function kompas_replace_post_author_name_block( $block_content, $block, $instance ) {
@@ -815,20 +872,27 @@ function kompas_replace_post_author_name_block( $block_content, $block, $instanc
 		$cpt_post = get_post( $cpt_author_id );
 		if ( $cpt_post && 'publish' === $cpt_post->post_status ) {
 			$custom_author = esc_html( get_the_title( $cpt_post ) );
-			// CPT authors: strip link (no public page), no no-translate needed.
-			$updated = preg_replace(
-				'/<a\b[^>]*>(.*?)<\/a>/is',
-				$custom_author,
-				$block_content,
-				1
-			);
-			if ( $updated ) {
-				return $updated;
+			$cpt_author_url = kompas_get_cpt_author_archive_url( $cpt_author_id );
+			$replacement    = $custom_author;
+			if ( '' !== $cpt_author_url ) {
+				$replacement = '<a href="' . esc_url( $cpt_author_url ) . '">' . $custom_author . '</a>';
 			}
+
+			if ( false !== stripos( $block_content, '<a ' ) ) {
+				// CPT authors always link to their custom archive page when URL exists.
+				$updated = preg_replace(
+					'/<a\b[^>]*>(.*?)<\/a>/is',
+					$replacement,
+					$block_content,
+					1
+				);
+				return $updated ?: $block_content;
+			}
+
 			$updated = preg_replace_callback(
 				'/(<div\b[^>]*>).*?(<\/div>)/is',
-				static function ( $matches ) use ( $custom_author ) {
-					return $matches[1] . $custom_author . $matches[2];
+				static function ( $matches ) use ( $replacement ) {
+					return $matches[1] . $replacement . $matches[2];
 				},
 				$block_content,
 				1
@@ -1025,6 +1089,11 @@ function kompas_render_tabs_block( $attributes ) {
 	$najnovije_url   = ! empty( $attributes['najnovijeUrl'] )   ? esc_url( $attributes['najnovijeUrl'] )   : '';
 	$najcitanije_url = ! empty( $attributes['najcitanijeUrl'] ) ? esc_url( $attributes['najcitanijeUrl'] ) : '';
 
+	if ( ! $najnovije_url ) {
+		$page_for_posts = (int) get_option( 'page_for_posts' );
+		$najnovije_url  = $page_for_posts ? esc_url( get_permalink( $page_for_posts ) ) : esc_url( home_url( '/' ) );
+	}
+
 	$najnovije_ids   = ! empty( $attributes['najnovijePostIds'] )   ? array_map( 'absint', $attributes['najnovijePostIds'] )   : array();
 	$najcitanije_ids = ! empty( $attributes['najcitanijePostIds'] ) ? array_map( 'absint', $attributes['najcitanijePostIds'] ) : array();
 
@@ -1095,7 +1164,7 @@ function kompas_render_tabs_block( $attributes ) {
 					<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈНОВИЈЕ →</a>
 					<?php endif; ?>
 					<?php if ( $najcitanije_url ) : ?>
-					<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">СВЕ НАЈЧИТАНИЈЕ →</a>
+					<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈЧИТАНИЈЕ →</a>
 					<?php endif; ?>
 				</div>
 				<?php endif; ?>
@@ -1111,12 +1180,12 @@ function kompas_render_tabs_block( $attributes ) {
 		</div>
 
 	<?php if ( $najnovije_url || $najcitanije_url ) : ?>
-	<div class="kompas-tabs-viewall kompas-tabs-viewall--bottom" style="display:none">
+	<div class="kompas-tabs-viewall kompas-tabs-viewall--bottom">
 		<?php if ( $najnovije_url ) : ?>
 		<a href="<?php echo $najnovije_url; ?>" class="kompas-tabs-viewall__link" data-for="najnovije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈНОВИЈЕ →</a>
 		<?php endif; ?>
 		<?php if ( $najcitanije_url ) : ?>
-		<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>display:none;">СВЕ НАЈЧИТАНИЈЕ →</a>
+		<a href="<?php echo $najcitanije_url; ?>" class="kompas-tabs-viewall__link" data-for="najcitanije" style="<?php echo esc_attr( $link_style ); ?>">СВЕ НАЈЧИТАНИЈЕ →</a>
 		<?php endif; ?>
 	</div>
 	<?php endif; ?>
@@ -1203,63 +1272,28 @@ function kompas_get_tags_for_category( $category_id, $limit = 10 ) {
 }
 
 /**
- * Render footer category columns with associated tags.
- *
- * Reads selected category IDs from block attributes.
+ * Render footer navigation columns from the dedicated WP menu location.
  */
 function kompas_render_footer_categories( $attributes = array() ) {
-	$selected = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
+	unset( $attributes );
 
-	if ( empty( $selected ) ) {
-		// Fallback: show all top-level categories.
-		$categories = get_categories( array(
-			'hide_empty' => false,
-			'parent'     => 0,
-		) );
-	} else {
-		$categories = array();
-		foreach ( $selected as $cat_id ) {
-			$cat = get_category( $cat_id );
-			if ( $cat && ! is_wp_error( $cat ) ) {
-				$categories[] = $cat;
-			}
-		}
-	}
-
-	if ( empty( $categories ) ) {
+	if ( ! has_nav_menu( 'kompas-footer-nav' ) ) {
 		return '';
 	}
 
-	$output = '<div class="kompas-footer-categories">';
+	$menu = wp_nav_menu( array(
+		'theme_location'  => 'kompas-footer-nav',
+		'container'       => 'nav',
+		'container_class' => 'kompas-footer-categories kompas-footer-categories--menu',
+		'container_id'    => '',
+		'menu_class'      => 'kompas-footer-categories__menu',
+		'fallback_cb'     => false,
+		'depth'           => 2,
+		'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		'echo'            => false,
+	) );
 
-	foreach ( $categories as $cat ) {
-		$output .= '<div class="kompas-footer-cat-col">';
-		$output .= '<h4 class="has-dark-color has-text-color" style="font-size:0.875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.02em;margin-bottom:0.75rem">';
-		$output .= '<a href="' . esc_url( get_category_link( $cat->term_id ) ) . '" style="color:inherit;text-decoration:none">';
-			$output .= esc_html( mb_strtoupper( $cat->name ) );
-		$output .= '</a></h4>';
-
-		$subcats = get_categories( array(
-			'parent'     => $cat->term_id,
-			'hide_empty' => false,
-			'number'     => 6,
-		) );
-
-		if ( ! empty( $subcats ) ) {
-			foreach ( $subcats as $subcat ) {
-				$output .= '<p class="has-muted-color has-text-color" style="font-size:0.8125rem;margin-top:0;margin-bottom:0.4rem">';
-				$output .= '<a href="' . esc_url( get_category_link( $subcat->term_id ) ) . '" style="color:inherit;text-decoration:none">';
-					$output .= esc_html( mb_strtoupper( $subcat->name ) );
-				$output .= '</a></p>';
-			}
-		}
-
-		$output .= '</div>';
-	}
-
-	$output .= '</div>';
-
-	return $output;
+	return ! empty( $menu ) ? $menu : '';
 }
 
 /**
@@ -1273,14 +1307,19 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 		? array_values( array_filter( array_map( 'absint', $attributes['selectedPostIds'] ) ) )
 		: array();
 
-	$exclude_ids = array();
+	$source_post_id = 0;
 	if ( $exclude_id > 0 ) {
-		$exclude_ids[] = $exclude_id;
+		$source_post_id = $exclude_id;
 	} elseif ( is_singular( 'post' ) ) {
 		$qid = (int) get_queried_object_id();
 		if ( $qid > 0 ) {
-			$exclude_ids[] = $qid;
+			$source_post_id = $qid;
 		}
+	}
+
+	$exclude_ids = array();
+	if ( $source_post_id > 0 ) {
+		$exclude_ids[] = $source_post_id;
 	}
 
 	$posts = array();
@@ -1294,23 +1333,104 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 			'orderby'        => 'post__in',
 			'posts_per_page' => $posts_to_show,
 			'post__not_in'   => $exclude_ids,
+			'ignore_sticky_posts' => true,
 		) );
 	}
 
-	// 2) Fill remaining slots with latest posts.
+	$source_category_ids = array();
+	$source_tag_ids      = array();
+
+	if ( $source_post_id > 0 ) {
+		$source_category_ids = wp_get_post_categories( $source_post_id, array( 'fields' => 'ids' ) );
+		$source_tag_ids      = wp_get_post_tags( $source_post_id, array( 'fields' => 'ids' ) );
+
+		$source_category_ids = is_array( $source_category_ids ) ? $source_category_ids : array();
+		$source_tag_ids      = is_array( $source_tag_ids ) ? $source_tag_ids : array();
+
+		$source_category_ids = array_values( array_filter( array_unique( array_map( 'absint', $source_category_ids ) ) ) );
+		$source_tag_ids      = array_values( array_filter( array_unique( array_map( 'absint', $source_tag_ids ) ) ) );
+
+		$default_category_id = (int) get_option( 'default_category', 1 );
+		if ( $default_category_id > 0 && ! empty( $source_category_ids ) ) {
+			$source_category_ids = array_values(
+				array_filter(
+					$source_category_ids,
+					static function( $term_id ) use ( $default_category_id ) {
+						return (int) $term_id !== $default_category_id;
+					}
+				)
+			);
+		}
+	}
+
+	$exclude_ids = array_unique( array_merge( $exclude_ids, wp_list_pluck( $posts, 'ID' ) ) );
 	$remaining = $posts_to_show - count( $posts );
-	if ( $remaining > 0 ) {
-		$posts = array_merge(
-			$posts,
-			get_posts( array(
-				'post_type'      => 'post',
-				'post_status'    => 'publish',
-				'posts_per_page' => $remaining,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'post__not_in'   => array_unique( array_merge( $exclude_ids, wp_list_pluck( $posts, 'ID' ) ) ),
-			) )
+
+	$append_related_posts = function( $query_args ) use ( &$posts, &$remaining, &$exclude_ids, $posts_to_show ) {
+		if ( $remaining <= 0 ) {
+			return;
+		}
+
+		$base_args = array(
+			'post_type'           => 'post',
+			'post_status'         => 'publish',
+			'posts_per_page'      => $remaining,
+			'post__not_in'        => $exclude_ids,
+			'ignore_sticky_posts' => true,
 		);
+
+		$next_posts = get_posts( array_merge( $base_args, $query_args ) );
+		if ( empty( $next_posts ) ) {
+			return;
+		}
+
+		$posts       = array_merge( $posts, $next_posts );
+		$exclude_ids = array_unique( array_merge( $exclude_ids, wp_list_pluck( $next_posts, 'ID' ) ) );
+		$remaining   = $posts_to_show - count( $posts );
+	};
+
+	// 2) Semantic fill order: category+tag -> category -> tag -> latest fallback.
+	if ( $remaining > 0 && ! empty( $source_category_ids ) && ! empty( $source_tag_ids ) ) {
+		$append_related_posts( array(
+			'orderby'   => 'date',
+			'order'     => 'DESC',
+			'tax_query' => array(
+				'relation' => 'AND',
+				array(
+					'taxonomy' => 'category',
+					'field'    => 'term_id',
+					'terms'    => $source_category_ids,
+				),
+				array(
+					'taxonomy' => 'post_tag',
+					'field'    => 'term_id',
+					'terms'    => $source_tag_ids,
+				),
+			),
+		) );
+	}
+
+	if ( $remaining > 0 && ! empty( $source_category_ids ) ) {
+		$append_related_posts( array(
+			'orderby'     => 'date',
+			'order'       => 'DESC',
+			'category__in' => $source_category_ids,
+		) );
+	}
+
+	if ( $remaining > 0 && ! empty( $source_tag_ids ) ) {
+		$append_related_posts( array(
+			'orderby' => 'date',
+			'order'   => 'DESC',
+			'tag__in' => $source_tag_ids,
+		) );
+	}
+
+	if ( $remaining > 0 ) {
+		$append_related_posts( array(
+			'orderby' => 'date',
+			'order'   => 'DESC',
+		) );
 	}
 
 	if ( empty( $posts ) ) {
@@ -1319,7 +1439,7 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 
 	ob_start();
 	?>
-	<div class="wp-block-group alignwide" style="border-top-color:var(--wp--preset--color--border);border-top-width:1px;padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)">
+	<div class="wp-block-group alignwide" style="border-top-color:var(--wp--preset--color--border);border-top-width:1px;border-bottom-color:var(--wp--preset--color--border);border-bottom-width:1px;padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)">
 
 		<?php if ( '' !== $title ) : ?>
 		<div class="wp-block-group" style="border-bottom-color:var(--wp--preset--color--primary);border-bottom-width:3px;margin-bottom:var(--wp--preset--spacing--50)">
@@ -1329,10 +1449,10 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 		</div>
 		<?php endif; ?>
 
-			<div class="wp-block-query kompas-related-posts-query">
-				<ul class="wp-block-post-template" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--wp--preset--spacing--40);margin:0;padding:0;list-style:none">
+				<div class="wp-block-query kompas-related-posts-query">
+					<ul class="wp-block-post-template" style="margin:0;padding:0;list-style:none">
 					<?php foreach ( $posts as $related_post ) : ?>
-					<li class="wp-block-post">
+					<li class="wp-block-post" style="margin:0;width:auto;min-width:0">
 						<?php if ( has_post_thumbnail( $related_post ) ) : ?>
 						<figure class="wp-block-post-featured-image" style="margin-bottom:var(--wp--preset--spacing--20)">
 							<a href="<?php echo esc_url( get_permalink( $related_post ) ); ?>">
@@ -1586,6 +1706,8 @@ function kompas_render_archive_layout( $attributes = array() ) {
 			echo paginate_links( array(
 				'total'     => $total_pages,
 				'current'   => $paged,
+				'mid_size'  => 1,
+				'end_size'  => 0,
 				'prev_text' => '&larr;',
 				'next_text' => '&rarr;',
 				'type'      => 'list',
@@ -1616,132 +1738,50 @@ add_action( 'init', 'kompas_register_archive_layout_block' );
  * Render the main header nav (categories).
  */
 function kompas_render_header_nav( $attributes = array() ) {
-	// If a WP menu is assigned to this location, use it (supports dropdowns).
-	if ( has_nav_menu( 'kompas-header-nav' ) ) {
-		ob_start();
-		wp_nav_menu( array(
-			'theme_location'  => 'kompas-header-nav',
-			'container'       => 'nav',
-			'container_class' => 'kompas-header-categories',
-			'container_id'    => '',
-			'menu_class'      => 'kompas-nav-menu',
-			'fallback_cb'     => false,
-			'depth'           => 2,
-			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
-		) );
-		return ob_get_clean();
-	}
+	unset( $attributes );
 
-	// Fallback: render from selectedIds or all top-level categories.
-	$ids = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
-
-	if ( empty( $ids ) ) {
-		$cats = get_categories( array( 'hide_empty' => false, 'parent' => 0 ) );
-	} else {
-		$cats = array();
-		foreach ( $ids as $id ) {
-			$c = get_category( $id );
-			if ( $c && ! is_wp_error( $c ) ) {
-				$cats[] = $c;
-			}
-		}
-	}
-
-	if ( empty( $cats ) ) {
+	if ( ! has_nav_menu( 'kompas-header-nav' ) ) {
 		return '';
 	}
 
-	$items = array();
-	foreach ( $cats as $cat ) {
-		$children = get_categories( array(
-			'hide_empty' => false,
-			'parent'     => (int) $cat->term_id,
-			'orderby'    => 'name',
-			'order'      => 'ASC',
-		) );
+	$menu = wp_nav_menu( array(
+		'theme_location'  => 'kompas-header-nav',
+		'container'       => 'nav',
+		'container_class' => 'kompas-header-categories',
+		'container_id'    => '',
+		'menu_class'      => 'kompas-nav-menu',
+		'fallback_cb'     => false,
+		'depth'           => 2,
+		'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		'echo'            => false,
+	) );
 
-		$classes = array(
-			'menu-item',
-			'menu-item-type-taxonomy',
-			'menu-item-object-category',
-		);
-		if ( ! empty( $children ) ) {
-			$classes[] = 'menu-item-has-children';
-		}
-
-		$item  = '<li class="' . esc_attr( implode( ' ', $classes ) ) . '">';
-		$item .= '<a href="' . esc_url( get_category_link( $cat->term_id ) ) . '">'
-			. esc_html( mb_strtoupper( $cat->name ) ) . '</a>';
-
-		if ( ! empty( $children ) ) {
-			$item .= '<ul class="sub-menu">';
-			foreach ( $children as $child ) {
-				$item .= '<li class="menu-item menu-item-type-taxonomy menu-item-object-category">';
-				$item .= '<a href="' . esc_url( get_category_link( $child->term_id ) ) . '">'
-					. esc_html( mb_strtoupper( $child->name ) ) . '</a>';
-				$item .= '</li>';
-			}
-			$item .= '</ul>';
-		}
-
-		$item   .= '</li>';
-		$items[] = $item;
-	}
-
-	return '<nav class="kompas-header-categories" aria-label="Главна навигација">'
-		. '<ul class="kompas-nav-menu">' . implode( '', $items ) . '</ul>'
-		. '</nav>';
+	return ! empty( $menu ) ? $menu : '';
 }
 
 /**
  * Render the secondary header nav (tags).
  */
 function kompas_render_header_tags( $attributes = array() ) {
-	$has_explicit_selection = isset( $attributes['selectedIds'] ) && is_array( $attributes['selectedIds'] );
-	$ids                    = $has_explicit_selection ? array_filter( array_map( 'absint', $attributes['selectedIds'] ) ) : array();
+	unset( $attributes );
 
-	// In block usage: if no tags are selected, don't render anything.
-	if ( $has_explicit_selection && empty( $ids ) ) {
+	if ( ! has_nav_menu( 'kompas-header-tags' ) ) {
 		return '';
 	}
 
-	// If selection is not set via block attrs and a WP menu is assigned, use menu.
-	if ( ! $has_explicit_selection && has_nav_menu( 'kompas-header-tags' ) ) {
-		ob_start();
-		wp_nav_menu( array(
-			'theme_location'  => 'kompas-header-tags',
-			'container'       => 'nav',
-			'container_class' => 'kompas-header-tags',
-			'container_id'    => '',
-			'menu_class'      => 'kompas-nav-menu',
-			'fallback_cb'     => false,
-			'depth'           => 1,
-			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
-		) );
-		return ob_get_clean();
-	}
+	$menu = wp_nav_menu( array(
+		'theme_location'  => 'kompas-header-tags',
+		'container'       => 'nav',
+		'container_class' => 'kompas-header-tags',
+		'container_id'    => '',
+		'menu_class'      => 'kompas-nav-menu',
+		'fallback_cb'     => false,
+		'depth'           => 1,
+		'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		'echo'            => false,
+	) );
 
-	$tags = array();
-	foreach ( $ids as $id ) {
-		$tag = get_tag( $id );
-		if ( $tag && ! is_wp_error( $tag ) ) {
-			$tags[] = $tag;
-		}
-	}
-
-	if ( empty( $tags ) ) {
-		return '';
-	}
-
-	$links = array();
-	foreach ( $tags as $tag ) {
-		$links[] = '<a href="' . esc_url( get_tag_link( $tag->term_id ) ) . '" class="kompas-header-tag-link">'
-			. esc_html( mb_strtoupper( $tag->name ) ) . '</a>';
-	}
-
-	return '<nav class="kompas-header-tags" aria-label="Секундарна навигација">'
-		. implode( '', $links )
-		. '</nav>';
+	return ! empty( $menu ) ? $menu : '';
 }
 
 /**
@@ -1833,18 +1873,95 @@ function kompas_enqueue_mobile_nav_script() {
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_mobile_nav_script' );
 
 /**
- * Auto-assign single-kolumne template for posts in the "kolumne" category.
+ * Auto-assign single-kolumne template for posts in kolumne/kolumna categories.
  */
+function kompas_is_kolumne_post( $post_id = 0 ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 ) {
+		$post_id = (int) get_queried_object_id();
+	}
+	if ( $post_id <= 0 && get_the_ID() ) {
+		$post_id = (int) get_the_ID();
+	}
+	if ( $post_id <= 0 || 'post' !== get_post_type( $post_id ) ) {
+		return false;
+	}
+
+	// Fast path for expected slugs.
+	if ( has_term( array( 'kolumne', 'kolumna' ), 'category', $post_id ) ) {
+		return true;
+	}
+
+	$terms = get_the_terms( $post_id, 'category' );
+	if ( empty( $terms ) || is_wp_error( $terms ) ) {
+		return false;
+	}
+
+	foreach ( $terms as $term ) {
+		$slug       = mb_strtolower( (string) $term->slug );
+		$name       = mb_strtolower( (string) $term->name );
+		$slug_latin = kompas_cyrillic_to_latin_for_slug( $slug );
+		$name_latin = kompas_cyrillic_to_latin_for_slug( $name );
+
+		if ( false !== strpos( $slug_latin, 'kolumn' ) || false !== strpos( $name_latin, 'kolumn' ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 function kompas_kolumne_single_template( $templates ) {
-	if ( is_singular( 'post' ) && has_category( 'kolumne' ) ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $templates;
+	}
+
+	$post_id = (int) get_queried_object_id();
+	if ( kompas_is_kolumne_post( $post_id ) ) {
 		array_unshift( $templates, 'single-kolumne' );
 	}
+
 	return $templates;
 }
 add_filter( 'single_template_hierarchy', 'kompas_kolumne_single_template' );
 
 /**
- * Exclude "kolumne" and "rec-urednika" categories from public category queries
+ * Fallback: force header-author template part on single Kolumne posts.
+ *
+ * This guarantees the custom header even when WordPress resolves the base single template.
+ */
+function kompas_force_header_author_template_part( $block_content, $block, $instance ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $block_content;
+	}
+
+	$post_id = 0;
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
+		$post_id = (int) $instance->context['postId'];
+	}
+	if ( $post_id <= 0 ) {
+		$post_id = (int) get_queried_object_id();
+	}
+	if ( ! kompas_is_kolumne_post( $post_id ) ) {
+		return $block_content;
+	}
+
+	$slug = (string) ( $block['attrs']['slug'] ?? '' );
+	$area = (string) ( $block['attrs']['area'] ?? '' );
+
+	if ( 'header-author' === $slug ) {
+		return $block_content;
+	}
+	if ( 'header' !== $area && ! str_starts_with( $slug, 'header' ) ) {
+		return $block_content;
+	}
+
+	return do_blocks( '<!-- wp:template-part {"slug":"header-author","tagName":"header","area":"header"} /-->' );
+}
+add_filter( 'render_block_core/template-part', 'kompas_force_header_author_template_part', 10, 3 );
+
+/**
+ * Exclude "kolumne/kolumna" and "rec-urednika" categories from public category queries
  * (widgets, default category lists, etc.) but NOT from admin or explicit queries.
  */
 function kompas_exclude_hidden_categories( $clauses, $taxonomies, $args ) {
@@ -1862,8 +1979,13 @@ function kompas_exclude_hidden_categories( $clauses, $taxonomies, $args ) {
 		return $clauses;
 	}
 
+	// Never hide categories when querying terms assigned to specific objects/posts.
+	if ( ! empty( $args['object_ids'] ) ) {
+		return $clauses;
+	}
+
 	global $wpdb;
-	$hidden_slugs = array( 'kolumne', 'rec-urednika' );
+	$hidden_slugs = array( 'kolumne', 'kolumna', 'rec-urednika' );
 	$placeholders = implode( ',', array_fill( 0, count( $hidden_slugs ), '%s' ) );
 	$clauses['where'] .= $wpdb->prepare(
 		" AND t.slug NOT IN ($placeholders)",
@@ -2171,8 +2293,19 @@ function kompas_replace_avatar_block_with_cpt_photo( $block_content, $block, $in
 		return $block_content;
 	}
 
-	$block_content = preg_replace( '/src="[^"]*"/', 'src="' . esc_url( $photo_url ) . '"', $block_content, 1 );
-	return $block_content;
+	$escaped_photo_url = esc_url( $photo_url );
+
+	// Replace existing src whether avatar HTML uses single or double quotes.
+	$updated = preg_replace( '/\bsrc=(["\']).*?\1/i', 'src="' . $escaped_photo_url . '"', $block_content, 1 );
+	if ( $updated && $updated !== $block_content ) {
+		// Remove srcset so browser does not keep gravatar candidates.
+		$updated = preg_replace( '/\bsrcset=(["\']).*?\1/i', '', $updated, 1 );
+		return $updated;
+	}
+
+	// Fallback: inject src directly into the first img tag.
+	$updated = preg_replace( '/<img\b/i', '<img src="' . $escaped_photo_url . '" ', $block_content, 1 );
+	return $updated ?: $block_content;
 }
 add_filter( 'render_block_core/avatar', 'kompas_replace_avatar_block_with_cpt_photo', 10, 3 );
 
@@ -2372,6 +2505,254 @@ function kompas_cyrillic_to_latin_for_slug( $text ) {
 }
 
 /**
+ * Convert Latin script to Cyrillic (Serbian).
+ */
+function kompas_latin_to_cyrillic( $text ) {
+	static $map = null;
+	if ( null === $map ) {
+		$map = array(
+			// Digraphs — moraju biti pre jednoslovnih da bi strtr dao prioritet dužim ključevima.
+			'Lj' => 'Љ', 'LJ' => 'Љ', 'lj' => 'љ',
+			'Nj' => 'Њ', 'NJ' => 'Њ', 'nj' => 'њ',
+			'Dž' => 'Џ', 'DŽ' => 'Џ', 'dž' => 'џ',
+			// Velika slova.
+			'A'=>'А','B'=>'Б','V'=>'В','G'=>'Г','D'=>'Д','Đ'=>'Ђ','E'=>'Е',
+			'Ž'=>'Ж','Z'=>'З','I'=>'И','J'=>'Ј','K'=>'К','L'=>'Л','M'=>'М',
+			'N'=>'Н','O'=>'О','P'=>'П','R'=>'Р','S'=>'С','T'=>'Т','Ć'=>'Ћ',
+			'U'=>'У','F'=>'Ф','H'=>'Х','C'=>'Ц','Č'=>'Ч','Š'=>'Ш',
+			// Mala slova.
+			'a'=>'а','b'=>'б','v'=>'в','g'=>'г','d'=>'д','đ'=>'ђ','e'=>'е',
+			'ž'=>'ж','z'=>'з','i'=>'и','j'=>'ј','k'=>'к','l'=>'л','m'=>'м',
+			'n'=>'н','o'=>'о','p'=>'п','r'=>'р','s'=>'с','t'=>'т','ć'=>'ћ',
+			'u'=>'у','f'=>'ф','h'=>'х','c'=>'ц','č'=>'ч','š'=>'ш',
+		);
+	}
+	return strtr( (string) $text, $map );
+}
+
+/**
+ * Transliterate search query from Latin to Cyrillic before WP queries the DB.
+ */
+function kompas_search_transliterate( $query ) {
+	if ( is_admin() || ! $query->is_main_query() || ! $query->is_search() ) {
+		return;
+	}
+	$s = (string) $query->get( 's' );
+	if ( '' === $s || preg_match( '/[\x{0400}-\x{04FF}]/u', $s ) ) {
+		return;
+	}
+
+	$query->set( 'kompas_search_latin_raw', $s );
+	$query->set( 's', kompas_latin_to_cyrillic( $s ) );
+}
+add_action( 'pre_get_posts', 'kompas_search_transliterate' );
+
+/**
+ * Parse raw search input into terms (supports quoted phrases).
+ *
+ * @param string $search Raw search string.
+ * @return string[]
+ */
+function kompas_search_extract_terms( $search ) {
+	$search = trim( (string) $search );
+	if ( '' === $search ) {
+		return array();
+	}
+
+	$terms = array();
+
+	if ( preg_match_all( '/"([^"]+)"|(\S+)/u', $search, $matches, PREG_SET_ORDER ) ) {
+		foreach ( $matches as $match ) {
+			$term = '';
+			if ( isset( $match[1] ) && '' !== $match[1] ) {
+				$term = $match[1];
+			} elseif ( isset( $match[2] ) ) {
+				$term = $match[2];
+			}
+
+			$term = trim( (string) $term );
+			if ( '' !== $term ) {
+				$terms[] = $term;
+			}
+		}
+	}
+
+	if ( empty( $terms ) ) {
+		$terms[] = $search;
+	}
+
+	return array_slice( array_values( array_unique( $terms ) ), 0, 6 );
+}
+
+/**
+ * Build Cyrillic variants for a Latin search term.
+ * Examples: c -> ц/ч/ћ, s -> с/ш, z -> з/ж, dj -> ђ/дј.
+ *
+ * @param string $term         Single search term.
+ * @param int    $max_variants Upper limit to keep SQL compact.
+ * @return string[]
+ */
+function kompas_latin_term_cyrillic_variants( $term, $max_variants = 36 ) {
+	$term = mb_strtolower( trim( (string) $term ), 'UTF-8' );
+	if ( '' === $term ) {
+		return array();
+	}
+
+	$max_variants = max( 1, (int) $max_variants );
+
+	$digraph_choices = array(
+		'lj' => array( 'љ' ),
+		'nj' => array( 'њ' ),
+		'dž' => array( 'џ' ),
+		'dj' => array( 'ђ', 'дј' ),
+		'dz' => array( 'џ', 'дз' ),
+	);
+
+	$single_choices = array(
+		'a' => array( 'а' ),  'b' => array( 'б' ),  'v' => array( 'в' ),  'g' => array( 'г' ),
+		'd' => array( 'д' ),  'đ' => array( 'ђ' ),  'e' => array( 'е' ),  'ž' => array( 'ж' ),
+		'z' => array( 'з', 'ж' ), 'i' => array( 'и' ),  'j' => array( 'ј' ),  'k' => array( 'к' ),
+		'l' => array( 'л' ),  'm' => array( 'м' ),  'n' => array( 'н' ),  'o' => array( 'о' ),
+		'p' => array( 'п' ),  'r' => array( 'р' ),  's' => array( 'с', 'ш' ), 't' => array( 'т' ),
+		'ć' => array( 'ћ' ),  'u' => array( 'у' ),  'f' => array( 'ф' ),  'h' => array( 'х' ),
+		'c' => array( 'ц', 'ч', 'ћ' ), 'č' => array( 'ч' ),  'š' => array( 'ш' ),  'q' => array( 'к' ),
+		'w' => array( 'в' ),  'x' => array( 'кс' ), 'y' => array( 'ј' ),
+	);
+
+	$segments = array();
+	$length   = mb_strlen( $term, 'UTF-8' );
+
+	for ( $i = 0; $i < $length; $i++ ) {
+		$pair = '';
+		if ( $i + 1 < $length ) {
+			$pair = mb_substr( $term, $i, 2, 'UTF-8' );
+		}
+
+		if ( '' !== $pair && isset( $digraph_choices[ $pair ] ) ) {
+			$segments[] = $digraph_choices[ $pair ];
+			$i++;
+			continue;
+		}
+
+		$char = mb_substr( $term, $i, 1, 'UTF-8' );
+		if ( isset( $single_choices[ $char ] ) ) {
+			$segments[] = $single_choices[ $char ];
+		} else {
+			$segments[] = array( $char );
+		}
+	}
+
+	$variants = array( '' );
+
+	foreach ( $segments as $choices ) {
+		$next = array();
+
+		foreach ( $variants as $prefix ) {
+			foreach ( $choices as $choice ) {
+				$candidate         = $prefix . $choice;
+				$next[ $candidate ] = true;
+
+				if ( count( $next ) >= $max_variants ) {
+					break 2;
+				}
+			}
+		}
+
+		$variants = array_keys( $next );
+		if ( empty( $variants ) ) {
+			break;
+		}
+	}
+
+	if ( empty( $variants ) ) {
+		return array( kompas_latin_to_cyrillic( $term ) );
+	}
+
+	$exact = kompas_latin_to_cyrillic( $term );
+	if ( ! in_array( $exact, $variants, true ) ) {
+		array_unshift( $variants, $exact );
+	}
+
+	return array_values( array_slice( array_unique( $variants ), 0, $max_variants ) );
+}
+
+/**
+ * Expand main search query with Cyrillic variants for Latin input.
+ *
+ * @param string   $search Existing SQL search clause.
+ * @param WP_Query $query  Current query object.
+ * @return string
+ */
+function kompas_search_expand_latin_variants( $search, $query ) {
+	if ( is_admin() || ! $query->is_main_query() || ! $query->is_search() ) {
+		return $search;
+	}
+
+	$raw = (string) $query->get( 'kompas_search_latin_raw' );
+	if ( '' === $raw ) {
+		return $search;
+	}
+
+	$terms = kompas_search_extract_terms( $raw );
+	if ( empty( $terms ) ) {
+		return $search;
+	}
+
+	global $wpdb;
+
+	$term_clauses = array();
+
+	foreach ( $terms as $term ) {
+		$is_exclusion = '-' === substr( $term, 0, 1 );
+		if ( $is_exclusion ) {
+			$term = ltrim( $term, '-' );
+		}
+
+		$term = trim( $term );
+		if ( '' === $term ) {
+			continue;
+		}
+
+		$variants = kompas_latin_term_cyrillic_variants( $term, 36 );
+		if ( empty( $variants ) ) {
+			continue;
+		}
+
+		$variant_clauses = array();
+
+		foreach ( $variants as $variant ) {
+			$like = '%' . $wpdb->esc_like( $variant ) . '%';
+			$variant_clauses[] = $wpdb->prepare(
+				"({$wpdb->posts}.post_title LIKE %s OR {$wpdb->posts}.post_excerpt LIKE %s OR {$wpdb->posts}.post_content LIKE %s)",
+				$like,
+				$like,
+				$like
+			);
+		}
+
+		if ( empty( $variant_clauses ) ) {
+			continue;
+		}
+
+		$joined_clause = '( ' . implode( ' OR ', $variant_clauses ) . ' )';
+		$term_clauses[] = $is_exclusion ? 'NOT ' . $joined_clause : $joined_clause;
+	}
+
+	if ( empty( $term_clauses ) ) {
+		return $search;
+	}
+
+	$search = ' AND (' . implode( ' AND ', $term_clauses ) . ')';
+
+	if ( ! is_user_logged_in() ) {
+		$search .= " AND ({$wpdb->posts}.post_password = '')";
+	}
+
+	return $search;
+}
+add_filter( 'posts_search', 'kompas_search_expand_latin_variants', 20, 2 );
+
+/**
  * Force Latin slug generation even when title is written in Cyrillic.
  */
 function kompas_force_latin_slug( $title, $raw_title, $context ) {
@@ -2391,10 +2772,10 @@ function kompas_force_latin_slug( $title, $raw_title, $context ) {
 add_filter( 'sanitize_title', 'kompas_force_latin_slug', 9, 3 );
 
 /**
- * Flush rewrite rules once after slug sanitization update (fixes tag archive 404).
+ * Flush rewrite rules once after slug/CPT permalink updates.
  */
 function kompas_maybe_flush_rewrite_after_slug_fix() {
-	$key    = 'kompas_rewrite_flushed_slug_fix_v1';
+	$key    = 'kompas_rewrite_flushed_slug_fix_v2';
 	$target = '1';
 
 	if ( get_option( $key ) === $target ) {
@@ -2493,6 +2874,36 @@ function kompas_save_attachment_source( $post, $attachment ) {
 add_filter( 'attachment_fields_to_save', 'kompas_save_attachment_source', 10, 2 );
 
 /**
+ * Inject image source overlay directly on the first image in block HTML.
+ *
+ * Keeps source attached to the image area (not the figure/caption flow) and
+ * avoids duplicate insertion when markup is already processed.
+ */
+function kompas_inject_image_source_overlay( $block_content, $source ) {
+	$source = trim( (string) $source );
+	if ( '' === $source ) {
+		return $block_content;
+	}
+
+	// Idempotency: do not inject twice.
+	if ( false !== strpos( $block_content, 'kompas-image-frame' ) || false !== strpos( $block_content, 'kompas-image-source' ) ) {
+		return $block_content;
+	}
+
+	$source_html = '<span class="kompas-image-source">' . esc_html( $source ) . '</span>';
+	$updated     = preg_replace_callback(
+		'/<img\b[^>]*>/i',
+		static function ( $matches ) use ( $source_html ) {
+			return '<span class="kompas-image-frame">' . $matches[0] . $source_html . '</span>';
+		},
+		$block_content,
+		1
+	);
+
+	return $updated ?: $block_content;
+}
+
+/**
  * Prikaži izvor fotografije ispod featured image na single postovima.
  */
 function kompas_featured_image_source( $block_content, $block, $instance ) {
@@ -2529,8 +2940,7 @@ function kompas_featured_image_source( $block_content, $block, $instance ) {
 		return $block_content;
 	}
 
-	$source_html = '<p class="kompas-image-source">' . esc_html( $source ) . '</p>';
-	return str_replace( '</figure>', $source_html . '</figure>', $block_content );
+	return kompas_inject_image_source_overlay( $block_content, $source );
 }
 add_filter( 'render_block_core/post-featured-image', 'kompas_featured_image_source', 11, 3 );
 
@@ -2552,8 +2962,7 @@ function kompas_content_image_source( $block_content, $block ) {
 		return $block_content;
 	}
 
-	$source_html = '<p class="kompas-image-source">' . esc_html( $source ) . '</p>';
-	return str_replace( '</figure>', $source_html . '</figure>', $block_content );
+	return kompas_inject_image_source_overlay( $block_content, $source );
 }
 add_filter( 'render_block_core/image', 'kompas_content_image_source', 10, 2 );
 
@@ -2713,11 +3122,21 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_video_lightbox' );
 /**
  * Register kompas/logo-autori block.
  */
-register_block_type( 'kompas/logo-autori', array(
-	'render_callback' => function() {
-		return '<div style="text-align:center;padding:var(--wp--preset--spacing--60) 0">'
-			 . '<img src="' . esc_url( get_template_directory_uri() ) . '/logo-autori.svg"'
-			 . ' alt="Kompas Autori" style="max-height:60px;width:auto;display:inline-block" />'
-			 . '</div>';
-	},
-) );
+function kompas_register_logo_autori_block() {
+	register_block_type(
+		'kompas/logo-autori',
+		array(
+			'render_callback' => function() {
+				$home_url = esc_url( home_url( '/' ) );
+				$logo_url = esc_url( get_theme_file_uri( 'logo-autori.svg' ) );
+
+				return '<div style="text-align:center;padding:var(--wp--preset--spacing--60) 0">'
+					 . '<a href="' . $home_url . '" style="display:inline-block">'
+					 . '<img src="' . $logo_url . '" alt="Kompas Autori" style="max-height:60px;width:auto;display:inline-block" />'
+					 . '</a>'
+					 . '</div>';
+			},
+		)
+	);
+}
+add_action( 'init', 'kompas_register_logo_autori_block' );

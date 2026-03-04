@@ -34,7 +34,7 @@ if ( ! $query->have_posts() ) {
 		}
 		$title = get_the_title();
 		$desc  = get_the_excerpt();
-		$date  = get_the_date();
+		$date  = get_the_date( 'd.m.Y. H:i' );
 	?>
 	<div class="kompas-video-card"
 		data-video-url="<?php echo esc_attr( $video_url ); ?>"
@@ -60,6 +60,8 @@ if ( $total_pages > 1 ) :
 	echo paginate_links( array(
 		'total'     => $total_pages,
 		'current'   => $paged,
+		'mid_size'  => 1,
+		'end_size'  => 0,
 		'prev_text' => '&#8592;',
 		'next_text' => '&#8594;',
 	) );
