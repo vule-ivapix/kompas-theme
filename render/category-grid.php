@@ -7,8 +7,10 @@
  * - Row 1: 2 large posts (image + title + excerpt)
  * - Row 2: 4 small posts (image + title)
  */
-$selected          = ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array();
-$posts_by_category = ! empty( $attributes['postsByCategory'] ) && is_array( $attributes['postsByCategory'] ) ? $attributes['postsByCategory'] : array();
+// Čitaj iz wp_options → fallback na block atribute.
+$catgrid_option    = get_option( 'kompas_category_grid_settings', array() );
+$selected          = ! empty( $catgrid_option['selected_ids'] ) ? array_map( 'absint', (array) $catgrid_option['selected_ids'] ) : ( ! empty( $attributes['selectedIds'] ) ? array_map( 'absint', $attributes['selectedIds'] ) : array() );
+$posts_by_category = ! empty( $catgrid_option['posts_by_category'] ) && is_array( $catgrid_option['posts_by_category'] ) ? $catgrid_option['posts_by_category'] : ( ! empty( $attributes['postsByCategory'] ) && is_array( $attributes['postsByCategory'] ) ? $attributes['postsByCategory'] : array() );
 $per_cat           = isset( $attributes['postsPerCategory'] ) ? (int) $attributes['postsPerCategory'] : 6;
 $per_cat           = max( 1, $per_cat );
 

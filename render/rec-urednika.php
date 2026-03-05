@@ -2,7 +2,9 @@
 /**
  * Render: kompas/rec-urednika
  */
-$post_id       = ! empty( $attributes['postId'] ) ? (int) $attributes['postId'] : 0;
+// Čitaj iz wp_options → fallback na block atribut.
+$option_post_id = (int) get_option( 'kompas_rec_urednika_post_id', 0 );
+$post_id        = $option_post_id > 0 ? $option_post_id : ( ! empty( $attributes['postId'] ) ? (int) $attributes['postId'] : 0 );
 $title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ УРЕДНИКА';
 $link_text     = ! empty( $attributes['linkText'] ) ? $attributes['linkText'] : 'ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ';
 $category_slug = ! empty( $attributes['categorySlug'] ) ? $attributes['categorySlug'] : 'rec-urednika';

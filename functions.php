@@ -1496,6 +1496,88 @@ add_action( 'init', 'kompas_register_footer_categories_block' );
  */
 
 /**
+ * Render kolumne archive layout: 3-kolona grid bez hero sekcije.
+ */
+function kompas_render_archive_layout_kolumne( $attributes = array() ) {
+	global $wp_query;
+
+	$paged    = max( 1, get_query_var( 'paged', 1 ) );
+	$per_page = isset( $attributes['postsPerPage'] ) ? (int) $attributes['postsPerPage'] : 12;
+
+	$args  = array_merge( $wp_query->query_vars, array(
+		'posts_per_page' => $per_page,
+		'paged'          => $paged,
+		'post_status'    => 'publish',
+	) );
+	$query = new WP_Query( $args );
+	$posts = $query->posts;
+
+	if ( empty( $posts ) ) {
+		return '<p style="color:var(--wp--preset--color--muted)">Нема постова за приказ.</p>';
+	}
+
+	ob_start();
+	?>
+	<div class="kompas-archive-layout kompas-archive-layout--kolumne">
+		<div class="kompas-archive-grid-row kompas-archive-grid-row--3">
+			<?php foreach ( $posts as $p ) :
+				$author_id   = $p->post_author;
+				$author_name = get_the_author_meta( 'display_name', $author_id );
+				$cpt_author_id = (int) get_post_meta( $p->ID, 'kompas_author_id', true );
+				if ( $cpt_author_id > 0 ) {
+					$cpt_post = get_post( $cpt_author_id );
+					if ( $cpt_post ) {
+						$author_name = get_the_title( $cpt_post );
+					}
+				}
+				$custom_author = get_post_meta( $p->ID, KOMPAS_CUSTOM_AUTHOR_META_KEY, true );
+				if ( ! empty( $custom_author ) ) {
+					$author_name = $custom_author;
+				}
+			?>
+			<div class="kompas-archive-grid-item">
+				<?php if ( has_post_thumbnail( $p ) ) : ?>
+				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
+					<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'medium' ) ); ?>"
+						 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
+						 class="kompas-archive-img" />
+				</a>
+				<?php endif; ?>
+				<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
+				</h4>
+				<?php if ( $author_name ) : ?>
+				<span class="kompas-archive-author"><?php echo esc_html( $author_name ); ?></span>
+				<?php endif; ?>
+			</div>
+			<?php endforeach; ?>
+		</div>
+
+		<?php
+		$total_pages = $query->max_num_pages;
+		if ( $total_pages > 1 ) :
+		?>
+		<nav class="kompas-archive-pagination" aria-label="Пагинација">
+			<?php
+			echo paginate_links( array(
+				'total'     => $total_pages,
+				'current'   => $paged,
+				'mid_size'  => 1,
+				'end_size'  => 0,
+				'prev_text' => '&larr;',
+				'next_text' => '&rarr;',
+				'type'      => 'list',
+			) );
+			?>
+		</nav>
+		<?php endif; ?>
+	</div>
+	<?php
+	wp_reset_postdata();
+	return ob_get_clean();
+}
+
+/**
  * Render the archive layout: hero + banner + repeating grid with pagination.
  *
  * Layout:
@@ -1506,6 +1588,13 @@ add_action( 'init', 'kompas_register_footer_categories_block' );
  */
 function kompas_render_archive_layout( $attributes = array() ) {
 	global $wp_query;
+
+	$layout_type = isset( $attributes['layoutType'] ) ? $attributes['layoutType'] : 'default';
+
+	// ── KOLUMNE LAYOUT (3-kolona grid, bez hero sekcije) ──────────
+	if ( $layout_type === 'kolumne' ) {
+		return kompas_render_archive_layout_kolumne( $attributes );
+	}
 
 	$paged    = max( 1, get_query_var( 'paged', 1 ) );
 	$per_page = isset( $attributes['postsPerPage'] ) ? (int) $attributes['postsPerPage'] : 17;
@@ -1533,9 +1622,9 @@ function kompas_render_archive_layout( $attributes = array() ) {
 			'post_status'    => 'publish',
 		) );
 	} else {
-		// Fallback: latest 9 from current archive query.
+		// Fallback: latest 5 from current archive query (1 main + 4 horiz).
 		$hero_args = array_merge( $wp_query->query_vars, array(
-			'posts_per_page' => 9,
+			'posts_per_page' => 5,
 			'paged'          => 1,
 			'post_status'    => 'publish',
 		) );
@@ -1567,13 +1656,11 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		<?php if ( $paged === 1 ) : ?>
 		<?php
 		// ── HERO SECTION: samo na prvoj strani ──────────────────
-		$hero_main   = isset( $hero_posts[0] ) ? $hero_posts[0] : null;
-		$hero_horiz  = array_slice( $hero_posts, 1, 4 );
-		$hero_side   = array_slice( $hero_posts, 5, 4 );
+		$hero_main  = isset( $hero_posts[0] ) ? $hero_posts[0] : null;
+		$hero_horiz = array_slice( $hero_posts, 1, 4 );
 		?>
 		<div class="kompas-archive-hero">
 
-			<!-- Left column 70% -->
 			<div class="kompas-archive-hero-left">
 				<?php if ( $hero_main ) : ?>
 				<div class="kompas-archive-hero-main">
@@ -1603,9 +1690,9 @@ function kompas_render_archive_layout( $attributes = array() ) {
 						</a>
 						<?php endif; ?>
 						<div class="kompas-archive-card-h__text">
-								<h3 class="kompas-archive-title kompas-archive-title--md"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
-									<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
-								</h3>
+							<h3 class="kompas-archive-title kompas-archive-title--md"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+								<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
+							</h3>
 						</div>
 					</div>
 					<?php endforeach; ?>
@@ -1613,25 +1700,11 @@ function kompas_render_archive_layout( $attributes = array() ) {
 				<?php endif; ?>
 			</div>
 
-			<!-- Right column 30% -->
-			<?php if ( ! empty( $hero_side ) ) : ?>
 			<div class="kompas-archive-hero-right">
-				<?php foreach ( $hero_side as $p ) : ?>
-				<div class="kompas-archive-card-v">
-					<?php if ( has_post_thumbnail( $p ) ) : ?>
-					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
-						<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'medium' ) ); ?>"
-							 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
-							 class="kompas-archive-img" />
-					</a>
-					<?php endif; ?>
-						<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
-							<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
-						</h4>
-				</div>
-				<?php endforeach; ?>
+				<?php echo do_blocks( '<!-- wp:kompas/rec-urednika /-->' ); ?>
+				<?php echo do_blocks( '<!-- wp:kompas/kolumne /-->' ); ?>
+				<?php echo do_blocks( '<!-- wp:kompas/banner {"variant":"square"} /-->' ); ?>
 			</div>
-			<?php endif; ?>
 
 		</div>
 
@@ -1813,6 +1886,16 @@ function kompas_register_blocks_editor_script() {
 	);
 }
 add_action( 'init', 'kompas_register_blocks_editor_script', 5 );
+
+/**
+ * Lokalizuj editor skriptu sa URL-om settings stranice.
+ */
+function kompas_localize_blocks_editor_script() {
+	wp_localize_script( 'kompas-blocks-editor', 'kompasBlocksData', array(
+		'settingsUrl' => admin_url( 'admin.php?page=kompas-homepage-settings' ),
+	) );
+}
+add_action( 'enqueue_block_editor_assets', 'kompas_localize_blocks_editor_script' );
 
 /**
  * Register Kolumne and Reč Urednika blocks.
@@ -2169,6 +2252,103 @@ function kompas_enqueue_category_hero_script( $hook ) {
 	) );
 }
 add_action( 'admin_enqueue_scripts', 'kompas_enqueue_category_hero_script' );
+
+/**
+ * ── Povezane vesti – per-post meta box ───────────────────────
+ */
+
+/**
+ * Registruj meta box za izbor povezanih vesti po postu.
+ */
+function kompas_register_related_posts_meta_box() {
+	add_meta_box(
+		'kompas-related-posts',
+		'Povezane vesti',
+		'kompas_render_related_posts_meta_box',
+		'post',
+		'side',
+		'default'
+	);
+}
+add_action( 'add_meta_boxes', 'kompas_register_related_posts_meta_box' );
+
+/**
+ * Render HTML za meta box.
+ */
+function kompas_render_related_posts_meta_box( $post ) {
+	wp_nonce_field( 'kompas_related_posts_save', 'kompas_related_posts_nonce' );
+	$ids = get_post_meta( $post->ID, 'kompas_related_post_ids', true );
+	$ids = is_array( $ids ) ? $ids : array();
+	?>
+	<div id="kompas-related-posts-wrap">
+		<input type="hidden" id="kompas-related-posts-ids" name="kompas_related_post_ids" value="<?php echo esc_attr( implode( ',', $ids ) ); ?>" />
+		<div id="kompas-related-posts-list" style="margin-bottom:8px"></div>
+		<input type="text" id="kompas-related-posts-search" placeholder="Pretraži postove..." class="widefat" autocomplete="off" style="margin-bottom:4px" />
+		<div id="kompas-related-posts-results" style="max-height:200px;overflow-y:auto"></div>
+		<p class="description" style="margin-top:6px">Do 6 postova. Ako nije ništa izabrano, koristi se automatski algoritam.</p>
+	</div>
+	<?php
+}
+
+/**
+ * Sačuvaj meta.
+ */
+function kompas_save_related_posts_meta( $post_id ) {
+	if ( ! isset( $_POST['kompas_related_posts_nonce'] ) ) {
+		return;
+	}
+	if ( ! wp_verify_nonce( $_POST['kompas_related_posts_nonce'], 'kompas_related_posts_save' ) ) {
+		return;
+	}
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	$ids = array();
+	if ( ! empty( $_POST['kompas_related_post_ids'] ) ) {
+		$ids = array_values( array_filter( array_map( 'absint', explode( ',', sanitize_text_field( $_POST['kompas_related_post_ids'] ) ) ) ) );
+		$ids = array_slice( $ids, 0, 6 );
+	}
+
+	if ( empty( $ids ) ) {
+		delete_post_meta( $post_id, 'kompas_related_post_ids' );
+	} else {
+		update_post_meta( $post_id, 'kompas_related_post_ids', $ids );
+	}
+}
+add_action( 'save_post', 'kompas_save_related_posts_meta' );
+
+/**
+ * Enkjuuj JS za meta box samo na post edit strani.
+ */
+function kompas_enqueue_related_posts_meta_box_script( $hook ) {
+	if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+		return;
+	}
+	$screen = get_current_screen();
+	if ( ! $screen || 'post' !== $screen->post_type ) {
+		return;
+	}
+	$path = get_theme_file_path( 'assets/js/related-posts-meta-box.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+	wp_enqueue_script(
+		'kompas-related-posts-meta-box',
+		get_theme_file_uri( 'assets/js/related-posts-meta-box.js' ),
+		array(),
+		$ver,
+		true
+	);
+	wp_localize_script( 'kompas-related-posts-meta-box', 'kompasRelatedData', array(
+		'nonce' => wp_create_nonce( 'wp_rest' ),
+	) );
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_related_posts_meta_box_script' );
 
 /**
  * ── Format "Не преводи" (script-toggle zaštita) ──────────────
@@ -2885,6 +3065,169 @@ function kompas_enqueue_admin_title_limit( $hook ) {
 add_action( 'admin_enqueue_scripts', 'kompas_enqueue_admin_title_limit' );
 
 /**
+ * Build publish-guard issues for required post fields.
+ */
+function kompas_get_publish_requirements_issues( $title, $featured_image_id, $categories ) {
+	$uncategorized_id = (int) get_option( 'default_category', 1 );
+	$title            = wp_strip_all_tags( (string) $title );
+	$title_len        = function_exists( 'mb_strlen' ) ? mb_strlen( $title ) : strlen( $title );
+	$categories       = array_values( array_unique( array_map( 'absint', (array) $categories ) ) );
+	$real_categories  = array_values(
+		array_filter(
+			$categories,
+			static function ( $cat_id ) use ( $uncategorized_id ) {
+				return $cat_id > 0 && $cat_id !== $uncategorized_id;
+			}
+		)
+	);
+
+	$issues = array();
+
+	if ( absint( $featured_image_id ) <= 0 ) {
+		$issues[] = 'naslovna slika nije postavljena';
+	}
+
+	if ( $title_len > 60 ) {
+		$issues[] = 'naslov je duži od 60 karaktera';
+	}
+
+	if ( 0 === count( $real_categories ) ) {
+		$issues[] = 'kategorija nije izabrana';
+	}
+
+	return $issues;
+}
+
+/**
+ * Save a one-time admin notice for failed publish requirements.
+ */
+function kompas_set_publish_requirements_notice( $issues ) {
+	if ( empty( $issues ) || ! is_user_logged_in() ) {
+		return;
+	}
+
+	$message = 'Vest ne može biti objavljena: ' . implode( ', ', $issues ) . '.';
+	set_transient( 'kompas_publish_requirements_notice_' . get_current_user_id(), $message, 60 );
+}
+
+/**
+ * Render admin notice when publish requirements fail in classic save flow.
+ */
+function kompas_render_publish_requirements_notice() {
+	if ( ! is_admin() || ! is_user_logged_in() ) {
+		return;
+	}
+
+	$screen = get_current_screen();
+	if ( ! $screen || 'post' !== $screen->post_type ) {
+		return;
+	}
+
+	$key     = 'kompas_publish_requirements_notice_' . get_current_user_id();
+	$message = get_transient( $key );
+	if ( ! $message ) {
+		return;
+	}
+
+	delete_transient( $key );
+	echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+}
+add_action( 'admin_notices', 'kompas_render_publish_requirements_notice' );
+
+/**
+ * Hard server-side guard for classic post save/publish flow.
+ *
+ * If conditions are not met, force status back to draft.
+ */
+function kompas_enforce_publish_requirements_on_insert( $data, $postarr ) {
+	if ( empty( $data['post_type'] ) || 'post' !== $data['post_type'] ) {
+		return $data;
+	}
+
+	if ( empty( $data['post_status'] ) || ! in_array( $data['post_status'], array( 'publish', 'future' ), true ) ) {
+		return $data;
+	}
+
+	$title = isset( $data['post_title'] ) ? $data['post_title'] : '';
+
+	$featured_image_id = 0;
+	if ( isset( $postarr['_thumbnail_id'] ) ) {
+		$featured_image_id = absint( $postarr['_thumbnail_id'] );
+	} elseif ( isset( $_POST['_thumbnail_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- validation-only read.
+		$featured_image_id = absint( wp_unslash( $_POST['_thumbnail_id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- validation-only read.
+	} elseif ( ! empty( $postarr['ID'] ) ) {
+		$featured_image_id = (int) get_post_thumbnail_id( (int) $postarr['ID'] );
+	}
+
+	$categories = array();
+	if ( isset( $postarr['post_category'] ) && is_array( $postarr['post_category'] ) ) {
+		$categories = $postarr['post_category'];
+	} elseif ( isset( $_POST['post_category'] ) && is_array( $_POST['post_category'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- validation-only read.
+		$categories = wp_unslash( $_POST['post_category'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- validation-only read.
+	} elseif ( ! empty( $postarr['ID'] ) ) {
+		$categories = wp_get_post_categories( (int) $postarr['ID'], array( 'fields' => 'ids' ) );
+	}
+
+	$issues = kompas_get_publish_requirements_issues( $title, $featured_image_id, $categories );
+	if ( empty( $issues ) ) {
+		return $data;
+	}
+
+	$data['post_status'] = 'draft';
+	kompas_set_publish_requirements_notice( $issues );
+	return $data;
+}
+add_filter( 'wp_insert_post_data', 'kompas_enforce_publish_requirements_on_insert', 20, 2 );
+
+/**
+ * Hard server-side guard for block editor REST publish/schedule flow.
+ */
+function kompas_enforce_publish_requirements_on_rest( $prepared_post, $request ) {
+	if ( ! is_object( $prepared_post ) || empty( $prepared_post->post_type ) || 'post' !== $prepared_post->post_type ) {
+		return $prepared_post;
+	}
+
+	$status = $request->has_param( 'status' ) ? (string) $request->get_param( 'status' ) : (string) $prepared_post->post_status;
+	if ( ! in_array( $status, array( 'publish', 'future' ), true ) ) {
+		return $prepared_post;
+	}
+
+	$title_param = $request->get_param( 'title' );
+	$title       = $prepared_post->post_title;
+	if ( is_array( $title_param ) && isset( $title_param['raw'] ) ) {
+		$title = (string) $title_param['raw'];
+	} elseif ( is_string( $title_param ) ) {
+		$title = $title_param;
+	}
+
+	$featured_image_id = 0;
+	if ( $request->has_param( 'featured_media' ) ) {
+		$featured_image_id = absint( $request->get_param( 'featured_media' ) );
+	} elseif ( ! empty( $prepared_post->ID ) ) {
+		$featured_image_id = (int) get_post_thumbnail_id( (int) $prepared_post->ID );
+	}
+
+	$categories = array();
+	if ( $request->has_param( 'categories' ) ) {
+		$categories = (array) $request->get_param( 'categories' );
+	} elseif ( ! empty( $prepared_post->ID ) ) {
+		$categories = wp_get_post_categories( (int) $prepared_post->ID, array( 'fields' => 'ids' ) );
+	}
+
+	$issues = kompas_get_publish_requirements_issues( $title, $featured_image_id, $categories );
+	if ( empty( $issues ) ) {
+		return $prepared_post;
+	}
+
+	return new WP_Error(
+		'kompas_publish_requirements_failed',
+		'Vest ne može biti objavljena: ' . implode( ', ', $issues ) . '.',
+		array( 'status' => 400 )
+	);
+}
+add_filter( 'rest_pre_insert_post', 'kompas_enforce_publish_requirements_on_rest', 20, 2 );
+
+/**
  * Dodaj "Izvor fotografije" polje u media editor.
  */
 function kompas_attachment_source_field( $form_fields, $post ) {
@@ -3177,3 +3520,354 @@ function kompas_register_logo_autori_block() {
 	);
 }
 add_action( 'init', 'kompas_register_logo_autori_block' );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Kompas Homepage Settings stranica ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registruj admin menu stranicu.
+ */
+function kompas_register_homepage_settings_page() {
+	add_menu_page(
+		'Kompas naslovna',
+		'Kompas naslovna',
+		'edit_posts',
+		'kompas-homepage-settings',
+		'kompas_render_homepage_settings_page',
+		'dashicons-grid-view',
+		30
+	);
+}
+add_action( 'admin_menu', 'kompas_register_homepage_settings_page' );
+
+/**
+ * Enkjuuj JS samo na settings strani.
+ */
+function kompas_enqueue_homepage_settings_assets( $hook ) {
+	if ( $hook !== 'toplevel_page_kompas-homepage-settings' ) {
+		return;
+	}
+	wp_enqueue_script(
+		'kompas-homepage-settings',
+		get_theme_file_uri( 'assets/js/homepage-settings.js' ),
+		array( 'jquery', 'jquery-ui-sortable' ),
+		'1.0',
+		true
+	);
+	wp_localize_script( 'kompas-homepage-settings', 'kompasSettings', array(
+		'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+		'nonce'   => wp_create_nonce( 'kompas_search_posts' ),
+	) );
+	wp_add_inline_style( 'wp-admin', kompas_homepage_settings_inline_css() );
+}
+add_action( 'admin_enqueue_scripts', 'kompas_enqueue_homepage_settings_assets' );
+
+/**
+ * Inline CSS za settings stranicu.
+ */
+function kompas_homepage_settings_inline_css() {
+	return '
+.kompas-settings-section { background:#fff; border:1px solid #ddd; border-radius:4px; padding:20px; margin-bottom:24px; }
+.kompas-settings-section h2 { margin-top:0; font-size:1.1rem; border-bottom:2px solid #e82d34; padding-bottom:8px; margin-bottom:16px; }
+.kompas-post-search-wrap { position:relative; margin-bottom:12px; }
+.kompas-post-search-wrap input[type=text] { width:100%; max-width:400px; }
+.kompas-autocomplete-list { position:absolute; z-index:999; background:#fff; border:1px solid #ccc; max-height:220px; overflow-y:auto; width:400px; list-style:none; margin:0; padding:0; }
+.kompas-autocomplete-list li { padding:8px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:0.9rem; }
+.kompas-autocomplete-list li:hover { background:#f0f0f0; }
+.kompas-selected-list { list-style:none; margin:0; padding:0; }
+.kompas-selected-list li { display:flex; align-items:center; gap:10px; padding:6px 10px; background:#f9f9f9; border:1px solid #e0e0e0; border-radius:3px; margin-bottom:6px; cursor:grab; }
+.kompas-selected-list li:active { cursor:grabbing; }
+.kompas-selected-list .kompas-drag-handle { color:#aaa; font-size:1.1rem; }
+.kompas-selected-list .kompas-remove { margin-left:auto; color:#cc0000; cursor:pointer; font-size:1.1rem; line-height:1; background:none; border:none; padding:0; }
+.kompas-catgrid-cat-block { border:1px solid #e0e0e0; border-radius:4px; padding:14px; margin-bottom:12px; background:#fafafa; }
+.kompas-catgrid-cat-block h4 { margin:0 0 10px; font-size:0.95rem; color:#e82d34; }
+';
+}
+
+/**
+ * AJAX handler: pretraži postove.
+ */
+function kompas_ajax_search_posts() {
+	check_ajax_referer( 'kompas_search_posts', 'nonce' );
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		wp_die( -1 );
+	}
+	$query = sanitize_text_field( wp_unslash( isset( $_GET['q'] ) ? $_GET['q'] : '' ) );
+	if ( mb_strlen( $query ) < 2 ) {
+		wp_send_json_success( array() );
+	}
+	$posts = get_posts( array(
+		's'              => $query,
+		'posts_per_page' => 10,
+		'post_status'    => 'publish',
+	) );
+	$results = array_map( function( $p ) {
+		return array( 'id' => $p->ID, 'title' => get_the_title( $p ) );
+	}, $posts );
+	wp_send_json_success( $results );
+}
+add_action( 'wp_ajax_kompas_search_posts', 'kompas_ajax_search_posts' );
+
+/**
+ * Sačuvaj settings (admin_post hook).
+ */
+function kompas_save_homepage_settings() {
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		wp_die( 'Nemate dozvolu.' );
+	}
+	check_admin_referer( 'kompas_homepage_settings_save' );
+
+	// Hero IDs
+	$hero_ids = array();
+	if ( ! empty( $_POST['kompas_hero_post_ids'] ) && is_array( $_POST['kompas_hero_post_ids'] ) ) {
+		$hero_ids = array_values( array_filter( array_map( 'absint', $_POST['kompas_hero_post_ids'] ) ) );
+	}
+	update_option( 'kompas_hero_post_ids', array_slice( $hero_ids, 0, 6 ) );
+
+	// Reč urednika
+	$rec_id = isset( $_POST['kompas_rec_urednika_post_id'] ) ? absint( $_POST['kompas_rec_urednika_post_id'] ) : 0;
+	update_option( 'kompas_rec_urednika_post_id', $rec_id );
+
+	// Kolumne IDs
+	$kolumne_ids = array();
+	if ( ! empty( $_POST['kompas_kolumne_post_ids'] ) && is_array( $_POST['kompas_kolumne_post_ids'] ) ) {
+		$kolumne_ids = array_values( array_filter( array_map( 'absint', $_POST['kompas_kolumne_post_ids'] ) ) );
+	}
+	update_option( 'kompas_kolumne_post_ids', array_slice( $kolumne_ids, 0, 3 ) );
+
+	// Category grid settings
+	$catgrid = array( 'selected_ids' => array(), 'posts_by_category' => array() );
+	if ( ! empty( $_POST['kompas_catgrid_selected_ids'] ) && is_array( $_POST['kompas_catgrid_selected_ids'] ) ) {
+		$catgrid['selected_ids'] = array_values( array_filter( array_map( 'absint', $_POST['kompas_catgrid_selected_ids'] ) ) );
+	}
+	if ( ! empty( $_POST['kompas_catgrid_posts'] ) && is_array( $_POST['kompas_catgrid_posts'] ) ) {
+		foreach ( $_POST['kompas_catgrid_posts'] as $cat_id => $pids ) {
+			$cat_id = absint( $cat_id );
+			if ( $cat_id > 0 && is_array( $pids ) ) {
+				$catgrid['posts_by_category'][ $cat_id ] = array_values( array_filter( array_map( 'absint', $pids ) ) );
+			}
+		}
+	}
+	update_option( 'kompas_category_grid_settings', $catgrid );
+
+	wp_redirect( admin_url( 'admin.php?page=kompas-homepage-settings&saved=1' ) );
+	exit;
+}
+add_action( 'admin_post_kompas_save_homepage_settings', 'kompas_save_homepage_settings' );
+
+/**
+ * Prikaži settings stranicu.
+ */
+function kompas_render_homepage_settings_page() {
+	$saved = isset( $_GET['saved'] );
+
+	$hero_ids        = (array) get_option( 'kompas_hero_post_ids', array() );
+	$rec_id          = (int) get_option( 'kompas_rec_urednika_post_id', 0 );
+	$kolumne_ids     = (array) get_option( 'kompas_kolumne_post_ids', array() );
+	$catgrid         = (array) get_option( 'kompas_category_grid_settings', array( 'selected_ids' => array(), 'posts_by_category' => array() ) );
+	$catgrid_selected = ! empty( $catgrid['selected_ids'] ) ? (array) $catgrid['selected_ids'] : array();
+	$catgrid_posts    = ! empty( $catgrid['posts_by_category'] ) ? (array) $catgrid['posts_by_category'] : array();
+	?>
+	<div class="wrap">
+		<h1>Kompas naslovna – podešavanja</h1>
+		<?php if ( $saved ) : ?>
+		<div class="notice notice-success is-dismissible"><p>Podešavanja sačuvana.</p></div>
+		<?php endif; ?>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'kompas_homepage_settings_save' ); ?>
+			<input type="hidden" name="action" value="kompas_save_homepage_settings" />
+
+			<!-- HERO -->
+			<div class="kompas-settings-section">
+				<h2>Hero sekcija (6 postova)</h2>
+				<?php kompas_settings_post_list( 'kompas_hero_post_ids', $hero_ids, 6, 'hero' ); ?>
+			</div>
+
+			<!-- REČ UREDNIKA -->
+			<div class="kompas-settings-section">
+				<h2>Reč urednika (1 post)</h2>
+				<?php kompas_settings_post_list( 'kompas_rec_urednika_post_id', $rec_id ? array( $rec_id ) : array(), 1, 'rec' ); ?>
+			</div>
+
+			<!-- KOLUMNE -->
+			<div class="kompas-settings-section">
+				<h2>Kolumne (3 posta)</h2>
+				<?php kompas_settings_post_list( 'kompas_kolumne_post_ids', $kolumne_ids, 3, 'kolumne' ); ?>
+			</div>
+
+			<!-- CATEGORY GRID -->
+			<div class="kompas-settings-section">
+				<h2>Category Grid – kategorije i postovi</h2>
+				<p style="color:#666;margin-bottom:12px">Odaberi kategorije (redosled određuje redosled prikaza). Za svaku kategoriju možeš ručno da odabereš postove.</p>
+
+				<div class="kompas-post-search-wrap" id="catgrid-cat-search-wrap">
+					<input type="text" id="catgrid-cat-search" placeholder="Pretraži kategorije..." autocomplete="off" style="max-width:400px;width:100%" />
+					<ul class="kompas-autocomplete-list" id="catgrid-cat-autocomplete" style="display:none"></ul>
+				</div>
+
+				<div id="catgrid-cat-blocks">
+				<?php foreach ( $catgrid_selected as $cid ) :
+					$cat = get_category( $cid );
+					if ( ! $cat || is_wp_error( $cat ) ) { continue; }
+					$pids = isset( $catgrid_posts[ $cid ] ) ? (array) $catgrid_posts[ $cid ] : array();
+				?>
+					<div class="kompas-catgrid-entry" data-cat-id="<?php echo esc_attr( $cid ); ?>">
+						<input type="hidden" name="kompas_catgrid_selected_ids[]" value="<?php echo esc_attr( $cid ); ?>" />
+						<div class="kompas-catgrid-cat-block">
+							<h4><?php echo esc_html( $cat->name ); ?> <button type="button" class="kompas-remove-cat button button-small" style="float:right;color:#cc0000">Ukloni kategoriju</button></h4>
+							<?php kompas_settings_post_list( 'kompas_catgrid_posts[' . $cid . ']', $pids, 6, 'catgrid_' . $cid ); ?>
+						</div>
+					</div>
+				<?php endforeach; ?>
+				</div>
+			</div>
+
+			<?php submit_button( 'Sačuvaj podešavanja', 'primary large' ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/**
+ * Helper: prikaži listu postova sa searchom i sortable.
+ */
+function kompas_settings_post_list( $field_name, $selected, $max, $uid ) {
+	$list_id   = 'kompas-list-' . $uid;
+	$search_id = 'kompas-search-' . $uid;
+	$auto_id   = 'kompas-auto-' . $uid;
+	$is_single = ( $max === 1 );
+	// Build input name
+	if ( $is_single ) {
+		$input_name = $field_name;
+	} elseif ( strpos( $field_name, '[]' ) !== false ) {
+		$input_name = $field_name;
+	} else {
+		$input_name = $field_name . '[]';
+	}
+	?>
+	<div class="kompas-post-search-wrap" id="<?php echo esc_attr( $search_id . '-wrap' ); ?>">
+		<input type="text" id="<?php echo esc_attr( $search_id ); ?>"
+			   placeholder="Pretraži postove..." autocomplete="off"
+			   style="max-width:400px;width:100%" />
+		<ul class="kompas-autocomplete-list" id="<?php echo esc_attr( $auto_id ); ?>" style="display:none"></ul>
+	</div>
+	<ul class="kompas-selected-list" id="<?php echo esc_attr( $list_id ); ?>"
+		data-max="<?php echo esc_attr( $max ); ?>"
+		data-single="<?php echo $is_single ? '1' : '0'; ?>"
+		data-input-name="<?php echo esc_attr( $input_name ); ?>">
+		<?php foreach ( (array) $selected as $pid ) :
+			if ( ! $pid ) { continue; }
+			$title = get_the_title( $pid );
+			if ( ! $title ) { continue; }
+		?>
+		<li data-id="<?php echo esc_attr( $pid ); ?>">
+			<span class="kompas-drag-handle">&#9776;</span>
+			<span><?php echo esc_html( $title ); ?></span>
+			<button type="button" class="kompas-remove">&#x2715;</button>
+			<input type="hidden" name="<?php echo esc_attr( $input_name ); ?>" value="<?php echo esc_attr( $pid ); ?>" />
+		</li>
+		<?php endforeach; ?>
+	</ul>
+
+	<script>
+	(function($) {
+		var listSel   = <?php echo wp_json_encode( '#' . $list_id ); ?>;
+		var searchSel = <?php echo wp_json_encode( '#' . $search_id ); ?>;
+		var autoSel   = <?php echo wp_json_encode( '#' . $auto_id ); ?>;
+		var wrapSel   = <?php echo wp_json_encode( '#' . $search_id . '-wrap' ); ?>;
+		var timer;
+
+		$(searchSel).on('input', function() {
+			clearTimeout(timer);
+			var q = $(this).val();
+			if (q.length < 2) { $(autoSel).hide().empty(); return; }
+			timer = setTimeout(function() {
+				$.get(kompasSettings.ajaxUrl, {
+					action: 'kompas_search_posts',
+					q: q,
+					nonce: kompasSettings.nonce
+				}, function(res) {
+					$(autoSel).empty().show();
+					if (!res.success || !res.data.length) {
+						$(autoSel).html('<li style="padding:8px 12px;color:#999">Nema rezultata</li>');
+						return;
+					}
+					$.each(res.data, function(i, item) {
+						$(autoSel).append($('<li>').text(item.title).attr('data-id', item.id));
+					});
+				});
+			}, 300);
+		});
+
+		$(autoSel).on('click', 'li', function() {
+			var id    = $(this).data('id');
+			var title = $(this).text();
+			var list  = $(listSel);
+			var max   = parseInt(list.data('max'), 10);
+			var isSingle   = list.data('single') === 1 || list.data('single') === '1';
+			var inputName  = list.data('input-name');
+
+			if (isSingle) {
+				list.empty();
+			} else if (list.find('li').length >= max) {
+				alert('Maksimalni broj postova je ' + max + '.');
+				$(autoSel).hide();
+				return;
+			}
+			if (!isSingle && list.find('li[data-id="' + id + '"]').length) {
+				$(autoSel).hide();
+				return;
+			}
+			var li = $('<li>').attr('data-id', id).html(
+				'<span class="kompas-drag-handle">&#9776;</span>' +
+				'<span>' + $('<div>').text(title).html() + '</span>' +
+				'<button type="button" class="kompas-remove">&#x2715;</button>' +
+				'<input type="hidden" name="' + inputName + '" value="' + id + '" />'
+			);
+			list.append(li);
+			$(autoSel).hide().empty();
+			$(searchSel).val('');
+		});
+
+		$(document).on('click', function(e) {
+			if (!$(e.target).closest(wrapSel).length) {
+				$(autoSel).hide();
+			}
+		});
+
+		$(document).on('click', listSel + ' .kompas-remove', function() {
+			$(this).closest('li').remove();
+		});
+
+		$(listSel).sortable({ handle: '.kompas-drag-handle', axis: 'y' });
+	}(jQuery));
+	</script>
+	<?php
+}
+
+/**
+ * AJAX handler: pretraži kategorije.
+ */
+function kompas_ajax_search_categories() {
+	check_ajax_referer( 'kompas_search_posts', 'nonce' );
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		wp_die( -1 );
+	}
+	$query = sanitize_text_field( wp_unslash( isset( $_GET['q'] ) ? $_GET['q'] : '' ) );
+	$terms = get_terms( array(
+		'taxonomy'   => 'category',
+		'name__like' => $query,
+		'number'     => 10,
+		'hide_empty' => false,
+	) );
+	$results = array();
+	if ( ! is_wp_error( $terms ) ) {
+		foreach ( $terms as $t ) {
+			$results[] = array( 'id' => $t->term_id, 'name' => $t->name );
+		}
+	}
+	wp_send_json_success( $results );
+}
+add_action( 'wp_ajax_kompas_search_categories', 'kompas_ajax_search_categories' );

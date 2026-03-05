@@ -2,7 +2,9 @@
 /**
  * Render: kompas/kolumne
  */
-$post_ids = ! empty( $attributes['postIds'] ) ? array_map( 'absint', $attributes['postIds'] ) : array();
+// Čitaj iz wp_options → fallback na block atribut.
+$option_ids = get_option( 'kompas_kolumne_post_ids', array() );
+$post_ids   = ! empty( $option_ids ) ? array_map( 'absint', (array) $option_ids ) : ( ! empty( $attributes['postIds'] ) ? array_map( 'absint', $attributes['postIds'] ) : array() );
 $count    = isset( $attributes['count'] ) ? (int) $attributes['count'] : 3;
 
 // Resolve kolumne category (sites may use either "kolumne" or "kolumna" slug).

@@ -810,141 +810,21 @@
 			/* ── Category Grid ──────────────────────────────────────── */
 			blocks.registerBlockType( 'kompas/category-grid', {
 			edit: function( props ) {
-				var blockProps  = useBlockProps();
-				var selectedIds = Array.isArray( props.attributes.selectedIds ) ? props.attributes.selectedIds : [];
-				var postsByCategory = props.attributes.postsByCategory && typeof props.attributes.postsByCategory === 'object' ? props.attributes.postsByCategory : {};
-				var perCategory = Math.max( 1, parseInt( props.attributes.postsPerCategory, 10 ) || 6 );
-				var _catNames = useState( {} );
-				var categoryNames = _catNames[0];
-				var setCategoryNames = _catNames[1];
-
-				var _dragState = useState( null );
-				var dragSrcIdx = _dragState[0];
-				var setDragSrcIdx = _dragState[1];
-
-				function moveCategory( fromIdx, toIdx ) {
-					if ( fromIdx === toIdx ) return;
-					var next = selectedIds.slice();
-					var moved = next.splice( fromIdx, 1 )[ 0 ];
-					next.splice( toIdx, 0, moved );
-					props.setAttributes( { selectedIds: next } );
-				}
-
-				function getPostsForCategory( catId ) {
-					var key = String( catId );
-					return Array.isArray( postsByCategory[ key ] ) ? postsByCategory[ key ] : [];
-				}
-
-				useEffect( function() {
-					if ( ! selectedIds.length ) {
-						setCategoryNames( {} );
-						return;
-					}
-					apiFetch( { path: '/wp/v2/categories?include=' + selectedIds.join(',') + '&per_page=' + selectedIds.length + '&_fields=id,name' } )
-						.then( function( categories ) {
-							var map = {};
-							categories.forEach( function( cat ) {
-								map[ cat.id ] = cat.name;
-							} );
-							setCategoryNames( map );
-						} )
-						.catch( function() {
-							setCategoryNames( {} );
-						} );
-				}, [ selectedIds.join(',') ] );
+				var blockProps = useBlockProps();
 
 				return el( element.Fragment, null,
 					el( InspectorControls, null,
-						el( TermPicker, {
-						selectedIds: selectedIds,
-						restBase:    'categories',
-						label:       'Kategorije za grid',
-						onChange:     function( next ) {
-							var nextMap = {};
-							next.forEach( function( catId ) {
-								var key = String( catId );
-								if ( Array.isArray( postsByCategory[ key ] ) ) {
-									nextMap[ key ] = postsByCategory[ key ];
-								}
-							} );
-							props.setAttributes( {
-								selectedIds: next,
-								postsByCategory: nextMap,
-							} );
-							},
-						} ),
-					selectedIds.length > 1 && el( PanelBody, { title: 'Redosled kategorija', initialOpen: true },
-						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: 0, marginBottom: '8px' } },
-							'Prevuci da promeniš redosled prikaza na sajtu.'
-						),
-						selectedIds.map( function( catId, index ) {
-							return el( 'div', {
-								key: 'drag-' + catId,
-								draggable: true,
-								onDragStart: function( e ) {
-									e.dataTransfer.effectAllowed = 'move';
-									setDragSrcIdx( index );
-								},
-								onDragOver: function( e ) {
-									e.preventDefault();
-									e.dataTransfer.dropEffect = 'move';
-								},
-								onDrop: function( e ) {
-									e.preventDefault();
-									moveCategory( dragSrcIdx, index );
-									setDragSrcIdx( null );
-								},
-								style: {
-									padding: '7px 10px',
-									marginBottom: '4px',
-									background: dragSrcIdx === index ? '#f0f6fc' : '#fff',
-									border: '1px solid ' + ( dragSrcIdx === index ? '#72aee6' : '#ddd' ),
-									borderRadius: '2px',
-									cursor: 'grab',
-									display: 'flex',
-									alignItems: 'center',
-									gap: '8px',
-									userSelect: 'none',
-								}
-							},
-								el( 'span', { style: { color: '#bbb', fontSize: '18px', lineHeight: '1', flexShrink: 0 } }, '⠿' ),
-								el( 'span', { style: { fontSize: '13px' } },
-									categoryNames[ catId ] || ( 'Kategorija #' + catId )
-								)
-							);
-						} )
-					),
-						selectedIds.map( function( catId ) {
-							var catPosts = getPostsForCategory( catId );
-							var title = categoryNames[ catId ] ? categoryNames[ catId ] : ( 'Kategorija #' + catId );
-
-							return el( PanelBody, {
-								key: 'cat-posts-' + catId,
-								title: 'Postovi: ' + title,
-								initialOpen: true,
-							},
-								el( HeroPostPicker, {
-									title: 'Ručno izabrani postovi',
-									selectedIds: catPosts,
-									max: perCategory,
-									categoryId: catId,
-									searchPlaceholder: 'Pretraži postove u kategoriji...',
-									onChange: function( nextPosts ) {
-										var nextMap = Object.assign( {}, postsByCategory );
-										var key = String( catId );
-										if ( nextPosts.length ) {
-											nextMap[ key ] = nextPosts;
-										} else {
-											delete nextMap[ key ];
-										}
-										props.setAttributes( { postsByCategory: nextMap } );
-									},
-								} ),
-								el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-									'Ako ne izabereš postove, prikazuju se najnoviji iz ove kategorije.'
-								)
-							);
-						} )
+						el( PanelBody, { title: 'Category Grid', initialOpen: true },
+							el( 'p', { style: { fontSize: '13px', margin: '0 0 10px' } },
+								'Kategorije i postovi se biraju na Kompas settings stranici.'
+							),
+							el( 'a', {
+								href: window.kompasBlocksData && window.kompasBlocksData.settingsUrl,
+								target: '_blank',
+								className: 'button button-primary',
+								style: { display: 'block', textAlign: 'center' },
+							}, 'Kompas naslovna – podešavanja' )
+						)
 					),
 					el( 'div', blockProps,
 						el( SSR, {
@@ -1123,21 +1003,19 @@
 	blocks.registerBlockType( 'kompas/kolumne', {
 		edit: function( props ) {
 			var blockProps = useBlockProps();
-			var postIds    = props.attributes.postIds || [];
 
 			return el( element.Fragment, null,
 				el( InspectorControls, null,
 					el( PanelBody, { title: 'Kolumne postovi', initialOpen: true },
-						el( HeroPostPicker, {
-							selectedIds: postIds,
-							max: 10,
-							onChange: function( next ) {
-								props.setAttributes( { postIds: next } );
-							}
-						} ),
-						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-							'Izaberite postove čiji će se autori prikazati u sekciji Kolumne.'
-						)
+						el( 'p', { style: { fontSize: '13px', margin: '0 0 10px' } },
+							'Postovi se biraju na Kompas settings stranici.'
+						),
+						el( 'a', {
+							href: window.kompasBlocksData && window.kompasBlocksData.settingsUrl,
+							target: '_blank',
+							className: 'button button-primary',
+							style: { display: 'block', textAlign: 'center' },
+						}, 'Kompas naslovna – podešavanja' )
 					)
 				),
 				el( 'div', blockProps,
@@ -1158,12 +1036,8 @@
 	blocks.registerBlockType( 'kompas/rec-urednika', {
 		edit: function( props ) {
 			var blockProps = useBlockProps();
-			var postId     = props.attributes.postId || 0;
 			var imageId    = props.attributes.imageId  || 0;
 			var imageUrl   = props.attributes.imageUrl || '';
-
-			// Reuse HeroPostPicker with max=1, convert single-element array.
-			var selectedIds = postId ? [ postId ] : [];
 
 			return el( element.Fragment, null,
 				el( InspectorControls, null,
@@ -1183,16 +1057,15 @@
 							value: props.attributes.categorySlug || '',
 							onChange: function( v ) { props.setAttributes( { categorySlug: v } ); },
 						} ),
-						el( HeroPostPicker, {
-							selectedIds: selectedIds,
-							max: 1,
-							onChange: function( next ) {
-								props.setAttributes( { postId: next.length ? next[0] : 0 } );
-							}
-						} ),
-						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-							'Izaberite post koji će biti prikazan. Ako nije izabran, uzima se najnoviji iz kategorije.'
+						el( 'p', { style: { fontSize: '13px', margin: '8px 0 10px' } },
+							'Post se bira na Kompas settings stranici.'
 						),
+						el( 'a', {
+							href: window.kompasBlocksData && window.kompasBlocksData.settingsUrl,
+							target: '_blank',
+							className: 'button button-primary',
+							style: { display: 'block', textAlign: 'center', marginBottom: '12px' },
+						}, 'Kompas naslovna – podešavanja' ),
 						el( 'hr', { style: { margin: '12px 0' } } ),
 						el( 'p', { style: { fontWeight: 600, marginBottom: '6px' } }, 'Slika ispod bloka' ),
 						el( MediaUploadCheck, null,
@@ -1239,22 +1112,20 @@
 	/* ── Homepage Hero ──────────────────────────────────────── */
 	blocks.registerBlockType( 'kompas/homepage-hero', {
 		edit: function( props ) {
-			var blockProps   = useBlockProps();
-			var heroPostIds  = props.attributes.heroPostIds || [];
+			var blockProps = useBlockProps();
 
 			return el( element.Fragment, null,
 				el( InspectorControls, null,
 					el( PanelBody, { title: 'Hero postovi (6)', initialOpen: true },
-						el( HeroPostPicker, {
-							selectedIds: heroPostIds,
-							max: 6,
-							onChange: function( next ) {
-								props.setAttributes( { heroPostIds: next } );
-							}
-						} ),
-						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-							'1 velika vest (centar) | 3 sidebar (levo) | 2 horizontalne (centar dole)'
-						)
+						el( 'p', { style: { fontSize: '13px', margin: '0 0 10px' } },
+							'Postovi se biraju na Kompas settings stranici.'
+						),
+						el( 'a', {
+							href: window.kompasBlocksData && window.kompasBlocksData.settingsUrl,
+							target: '_blank',
+							className: 'button button-primary',
+							style: { display: 'block', textAlign: 'center' },
+						}, 'Kompas naslovna – podešavanja' )
 					)
 				),
 				el( 'div', blockProps,

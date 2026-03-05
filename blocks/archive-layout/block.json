@@ -17,6 +17,10 @@
 		"heroPostIds": {
 			"type": "array",
 			"default": []
+		},
+		"layoutType": {
+			"type": "string",
+			"default": "default"
 		}
 	},
 	"textdomain": "kompas",

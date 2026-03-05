@@ -9,6 +9,7 @@
 	var lastNoticeAt = 0;
 	var NOTICE_COOLDOWN_MS = 1200;
 	var boundDocs = [];
+	var editorStoreGuardStarted = false;
 
 	function bindTitleLimits( rootDoc ) {
 		if ( ! rootDoc || ! rootDoc.querySelectorAll ) {
@@ -208,6 +209,134 @@
 		return sel.toString().length;
 	}
 
+	function getTextInputSelectionLength( el ) {
+		if ( ! el ) {
+			return 0;
+		}
+
+		var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;
+		var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+		return Math.max( 0, end - start );
+	}
+
+	function replaceTextInputSelection( el, text ) {
+		if ( ! el ) {
+			return;
+		}
+
+		var value = el.value || '';
+		var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+		var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+
+		if ( typeof el.setRangeText === 'function' ) {
+			el.setRangeText( text, start, end, 'end' );
+			return;
+		}
+
+		el.value = value.slice( 0, start ) + text + value.slice( end );
+		var nextPos = start + text.length;
+		if ( typeof el.setSelectionRange === 'function' ) {
+			el.setSelectionRange( nextPos, nextPos );
+		}
+	}
+
+	function dispatchInputEvent( el ) {
+		if ( ! el || typeof el.dispatchEvent !== 'function' ) {
+			return;
+		}
+
+		var doc = el.ownerDocument || document;
+		var win = doc.defaultView || window;
+		var EventCtor = win.Event || window.Event;
+		if ( ! EventCtor ) {
+			return;
+		}
+
+		el.dispatchEvent( new EventCtor( 'input', { bubbles: true } ) );
+	}
+
+	function getClipboardText( event ) {
+		if ( event && event.clipboardData && typeof event.clipboardData.getData === 'function' ) {
+			return event.clipboardData.getData( 'text/plain' ) || event.clipboardData.getData( 'text' ) || '';
+		}
+
+		if ( window.clipboardData && typeof window.clipboardData.getData === 'function' ) {
+			return window.clipboardData.getData( 'Text' ) || '';
+		}
+
+		return '';
+	}
+
+	function insertTextIntoContentEditable( el, text ) {
+		if ( ! el || ! text ) {
+			return;
+		}
+
+		var doc = el.ownerDocument || document;
+		var win = doc.defaultView || window;
+		var sel = win.getSelection ? win.getSelection() : null;
+		if ( ! sel || sel.rangeCount === 0 ) {
+			el.textContent = ( el.textContent || '' ) + text;
+			moveCaretToEnd( el );
+			return;
+		}
+
+		var range = sel.getRangeAt( 0 );
+		if ( ! el.contains( range.startContainer ) || ! el.contains( range.endContainer ) ) {
+			el.textContent = ( el.textContent || '' ) + text;
+			moveCaretToEnd( el );
+			return;
+		}
+
+		range.deleteContents();
+		var textNode = doc.createTextNode( text );
+		range.insertNode( textNode );
+		range.setStartAfter( textNode );
+		range.collapse( true );
+		sel.removeAllRanges();
+		sel.addRange( range );
+	}
+
+	function bindEditorStoreGuard() {
+		if ( editorStoreGuardStarted ) {
+			return;
+		}
+		editorStoreGuardStarted = true;
+
+		if (
+			! window.wp ||
+			! window.wp.data ||
+			typeof window.wp.data.subscribe !== 'function' ||
+			typeof window.wp.data.select !== 'function' ||
+			typeof window.wp.data.dispatch !== 'function'
+		) {
+			return;
+		}
+
+		var isApplying = false;
+
+		window.wp.data.subscribe( function () {
+			if ( isApplying ) {
+				return;
+			}
+
+			var editorStore = window.wp.data.select( 'core/editor' );
+			if ( ! editorStore || typeof editorStore.getEditedPostAttribute !== 'function' ) {
+				return;
+			}
+
+			var title = editorStore.getEditedPostAttribute( 'title' );
+			if ( 'string' !== typeof title || title.length <= TITLE_MAX ) {
+				return;
+			}
+
+			isApplying = true;
+			window.wp.data.dispatch( 'core/editor' ).editPost( { title: title.slice( 0, TITLE_MAX ) } );
+			isApplying = false;
+			showLimitNotice();
+		} );
+	}
+
 	function showLimitNotice() {
 		var now = Date.now();
 		if ( now - lastNoticeAt < NOTICE_COOLDOWN_MS ) {
@@ -281,6 +410,68 @@
 			return;
 		}
 		markDocBound( rootDoc );
+
+		rootDoc.addEventListener( 'paste', function ( e ) {
+			var field = getTitleFieldFromNode( e.target );
+			if ( ! field ) {
+				return;
+			}
+
+			var pastedText = getClipboardText( e );
+
+			if ( isTextInput( field ) ) {
+				var currentValue = field.value || '';
+				var selectedLen = getTextInputSelectionLength( field );
+				var allowed = TITLE_MAX - ( currentValue.length - selectedLen );
+
+				if ( pastedText ) {
+					if ( pastedText.length <= allowed ) {
+						return;
+					}
+
+					e.preventDefault();
+					if ( allowed > 0 ) {
+						replaceTextInputSelection( field, pastedText.slice( 0, allowed ) );
+						dispatchInputEvent( field );
+					}
+					showLimitNotice();
+					return;
+				}
+
+				if ( allowed <= 0 ) {
+					e.preventDefault();
+					showLimitNotice();
+				}
+				return;
+			}
+
+			if ( ! isContentEditable( field ) ) {
+				return;
+			}
+
+			var text = field.textContent || '';
+			var selectedLen = getSelectedLengthInside( field );
+			var allowed = TITLE_MAX - ( text.length - selectedLen );
+
+			if ( pastedText ) {
+				if ( pastedText.length <= allowed ) {
+					return;
+				}
+
+				e.preventDefault();
+				if ( allowed > 0 ) {
+					insertTextIntoContentEditable( field, pastedText.slice( 0, allowed ) );
+				}
+				enforceEditableLimit( field );
+				showLimitNotice();
+				return;
+			}
+
+			if ( allowed <= 0 ) {
+				e.preventDefault();
+				showLimitNotice();
+			}
+		}, true );
 
 		rootDoc.addEventListener( 'beforeinput', function ( e ) {
 			var field = getTitleFieldFromNode( e.target );
@@ -392,6 +583,7 @@
 	}
 
 	function boot() {
+		bindEditorStoreGuard();
 		bindDocumentListeners( document );
 
 		var rafPending = false;

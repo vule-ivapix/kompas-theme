@@ -9,7 +9,9 @@
  *
  * If fewer than 6 are manually selected, remaining slots filled by latest posts.
  */
-$hero_ids = ! empty( $attributes['heroPostIds'] ) ? array_map( 'absint', $attributes['heroPostIds'] ) : array();
+// Čitaj iz wp_options (settings stranica) → fallback na block atribut.
+$option_ids = get_option( 'kompas_hero_post_ids', array() );
+$hero_ids   = ! empty( $option_ids ) ? array_map( 'absint', (array) $option_ids ) : ( ! empty( $attributes['heroPostIds'] ) ? array_map( 'absint', $attributes['heroPostIds'] ) : array() );
 $total_needed = 6;
 
 $posts = array();
