@@ -88,6 +88,24 @@ $sub_posts     = array_slice( $posts, 4, 2 );
 		</div>
 		<?php endif; ?>
 
+		<!-- Mobilni sidebar duplikat (vidljiv samo na mobilnom, posts 2-4) -->
+		<div class="kompas-homepage-hero__sidebar--mobile">
+			<?php $mob_last = count( $sidebar_posts ) - 1; foreach ( $sidebar_posts as $si => $p ) : ?>
+			<div class="kompas-homepage-hero__sidebar-item" style="margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);<?php echo $si < $mob_last ? 'border-bottom:1px solid var(--wp--preset--color--border)' : ''; ?>">
+				<?php if ( has_post_thumbnail( $p ) ) : ?>
+				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="display:block;margin-bottom:var(--wp--preset--spacing--30)">
+					<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'kompas-thumbnail' ) ); ?>"
+						 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
+						 style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
+				</a>
+				<?php endif; ?>
+				<h3 style="font-size:1.0625rem;font-weight:700;line-height:1.3;margin:0"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" style="color:var(--wp--preset--color--dark);text-decoration:none"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
+				</h3>
+			</div>
+			<?php endforeach; ?>
+		</div>
+
 		<!-- Sub posts (horizontal cards) -->
 		<?php $sub_last = count( $sub_posts ) - 1; foreach ( $sub_posts as $si => $p ) : ?>
 		<div class="kompas-homepage-hero__sub-item" style="display:flex;flex-wrap:nowrap;align-items:flex-start;gap:var(--wp--preset--spacing--40);margin-bottom:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--40);<?php echo $si < $sub_last ? 'border-bottom:1px solid var(--wp--preset--color--border)' : ''; ?>">

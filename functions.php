@@ -1496,6 +1496,31 @@ add_action( 'init', 'kompas_register_footer_categories_block' );
  */
 
 /**
+ * Wrapper za paginate_links() koji uklanja poslednji broj stranice kada postoje dots.
+ * WordPress ignoriše end_size=>0 i i dalje renderuje poslednju stranicu pored "...".
+ */
+function kompas_paginate_links( $args ) {
+	$args['type'] = 'list';
+	$out = paginate_links( $args );
+	if ( ! $out || strpos( $out, 'dots' ) === false ) {
+		return $out;
+	}
+	// Ukloni prvi broj stranice između ← prev i dots
+	$out = preg_replace(
+		'~(<li>\s*<a[^>]+class="prev page-numbers"[^>]*>.*?</a>\s*</li>)\s*<li>\s*<a[^>]+class="page-numbers"[^>]*>\d+</a>\s*</li>(\s*<li>\s*<span[^>]+class="page-numbers dots")~is',
+		'$1$2',
+		$out
+	);
+	// Ukloni poslednji broj stranice koji se pojavljuje posle dots, pre → next
+	$out = preg_replace(
+		'~<li>\s*<a[^>]+class="page-numbers"[^>]*>\d+</a>\s*</li>(\s*<li>\s*<a[^>]+class="next page-numbers")~i',
+		'$1',
+		$out
+	);
+	return $out;
+}
+
+/**
  * Render kolumne archive layout: 3-kolona grid bez hero sekcije.
  */
 function kompas_render_archive_layout_kolumne( $attributes = array() ) {
@@ -1559,14 +1584,13 @@ function kompas_render_archive_layout_kolumne( $attributes = array() ) {
 		?>
 		<nav class="kompas-archive-pagination" aria-label="Пагинација">
 			<?php
-			echo paginate_links( array(
+			echo kompas_paginate_links( array(
 				'total'     => $total_pages,
 				'current'   => $paged,
 				'mid_size'  => 1,
 				'end_size'  => 0,
 				'prev_text' => '&larr;',
 				'next_text' => '&rarr;',
-				'type'      => 'list',
 			) );
 			?>
 		</nav>
@@ -1776,14 +1800,13 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		?>
 		<nav class="kompas-archive-pagination" aria-label="Пагинација">
 			<?php
-			echo paginate_links( array(
+			echo kompas_paginate_links( array(
 				'total'     => $total_pages,
 				'current'   => $paged,
 				'mid_size'  => 1,
 				'end_size'  => 0,
 				'prev_text' => '&larr;',
 				'next_text' => '&rarr;',
-				'type'      => 'list',
 			) );
 			?>
 		</nav>
@@ -3548,6 +3571,7 @@ function kompas_enqueue_homepage_settings_assets( $hook ) {
 	if ( $hook !== 'toplevel_page_kompas-homepage-settings' ) {
 		return;
 	}
+	wp_enqueue_media();
 	wp_enqueue_script(
 		'kompas-homepage-settings',
 		get_theme_file_uri( 'assets/js/homepage-settings.js' ),
@@ -3628,6 +3652,8 @@ function kompas_save_homepage_settings() {
 	// Reč urednika
 	$rec_id = isset( $_POST['kompas_rec_urednika_post_id'] ) ? absint( $_POST['kompas_rec_urednika_post_id'] ) : 0;
 	update_option( 'kompas_rec_urednika_post_id', $rec_id );
+	$rec_image = isset( $_POST['kompas_rec_urednika_image_url'] ) ? esc_url_raw( wp_unslash( $_POST['kompas_rec_urednika_image_url'] ) ) : '';
+	update_option( 'kompas_rec_urednika_image_url', $rec_image );
 
 	// Kolumne IDs
 	$kolumne_ids = array();
@@ -3664,6 +3690,7 @@ function kompas_render_homepage_settings_page() {
 
 	$hero_ids        = (array) get_option( 'kompas_hero_post_ids', array() );
 	$rec_id          = (int) get_option( 'kompas_rec_urednika_post_id', 0 );
+	$rec_image_url   = (string) get_option( 'kompas_rec_urednika_image_url', '' );
 	$kolumne_ids     = (array) get_option( 'kompas_kolumne_post_ids', array() );
 	$catgrid         = (array) get_option( 'kompas_category_grid_settings', array( 'selected_ids' => array(), 'posts_by_category' => array() ) );
 	$catgrid_selected = ! empty( $catgrid['selected_ids'] ) ? (array) $catgrid['selected_ids'] : array();
@@ -3689,6 +3716,23 @@ function kompas_render_homepage_settings_page() {
 			<div class="kompas-settings-section">
 				<h2>Reč urednika (1 post)</h2>
 				<?php kompas_settings_post_list( 'kompas_rec_urednika_post_id', $rec_id ? array( $rec_id ) : array(), 1, 'rec' ); ?>
+				<div style="margin-top:16px">
+					<p style="font-weight:600;margin-bottom:8px">Slika uz Reč urednika</p>
+					<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+						<button type="button" id="kompas-rec-image-btn" class="button">
+							<?php echo $rec_image_url ? 'Promeni sliku' : 'Odaberi sliku'; ?>
+						</button>
+						<?php if ( $rec_image_url ) : ?>
+						<button type="button" id="kompas-rec-image-remove" class="button" style="color:#cc0000">Ukloni sliku</button>
+						<?php else : ?>
+						<button type="button" id="kompas-rec-image-remove" class="button" style="color:#cc0000;display:none">Ukloni sliku</button>
+						<?php endif; ?>
+					</div>
+					<div id="kompas-rec-image-preview" style="margin-top:10px<?php echo $rec_image_url ? '' : ';display:none'; ?>">
+						<img src="<?php echo esc_url( $rec_image_url ); ?>" style="max-width:300px;height:auto;display:block;border:1px solid #ddd;border-radius:3px" />
+					</div>
+					<input type="hidden" name="kompas_rec_urednika_image_url" id="kompas-rec-image-url" value="<?php echo esc_attr( $rec_image_url ); ?>" />
+				</div>
 			</div>
 
 			<!-- KOLUMNE -->
@@ -3731,24 +3775,19 @@ function kompas_render_homepage_settings_page() {
 }
 
 /**
- * Helper: prikaži listu postova sa searchom i sortable.
+ * Helper: prikaži listu postova sa searchom i sortable (bez inline JS).
  */
 function kompas_settings_post_list( $field_name, $selected, $max, $uid ) {
-	$list_id   = 'kompas-list-' . $uid;
-	$search_id = 'kompas-search-' . $uid;
-	$auto_id   = 'kompas-auto-' . $uid;
-	$is_single = ( $max === 1 );
-	// Build input name
-	if ( $is_single ) {
-		$input_name = $field_name;
-	} elseif ( strpos( $field_name, '[]' ) !== false ) {
-		$input_name = $field_name;
-	} else {
-		$input_name = $field_name . '[]';
-	}
+	$list_id    = 'kompas-list-' . $uid;
+	$auto_id    = 'kompas-auto-' . $uid;
+	$is_single  = ( $max === 1 );
+	$input_name = ( $is_single || strpos( $field_name, '[]' ) !== false ) ? $field_name : $field_name . '[]';
 	?>
-	<div class="kompas-post-search-wrap" id="<?php echo esc_attr( $search_id . '-wrap' ); ?>">
-		<input type="text" id="<?php echo esc_attr( $search_id ); ?>"
+	<div class="kompas-post-search-wrap">
+		<input type="text"
+			   class="kompas-post-search"
+			   data-list="#<?php echo esc_attr( $list_id ); ?>"
+			   data-auto="#<?php echo esc_attr( $auto_id ); ?>"
 			   placeholder="Pretraži postove..." autocomplete="off"
 			   style="max-width:400px;width:100%" />
 		<ul class="kompas-autocomplete-list" id="<?php echo esc_attr( $auto_id ); ?>" style="display:none"></ul>
@@ -3770,80 +3809,6 @@ function kompas_settings_post_list( $field_name, $selected, $max, $uid ) {
 		</li>
 		<?php endforeach; ?>
 	</ul>
-
-	<script>
-	(function($) {
-		var listSel   = <?php echo wp_json_encode( '#' . $list_id ); ?>;
-		var searchSel = <?php echo wp_json_encode( '#' . $search_id ); ?>;
-		var autoSel   = <?php echo wp_json_encode( '#' . $auto_id ); ?>;
-		var wrapSel   = <?php echo wp_json_encode( '#' . $search_id . '-wrap' ); ?>;
-		var timer;
-
-		$(searchSel).on('input', function() {
-			clearTimeout(timer);
-			var q = $(this).val();
-			if (q.length < 2) { $(autoSel).hide().empty(); return; }
-			timer = setTimeout(function() {
-				$.get(kompasSettings.ajaxUrl, {
-					action: 'kompas_search_posts',
-					q: q,
-					nonce: kompasSettings.nonce
-				}, function(res) {
-					$(autoSel).empty().show();
-					if (!res.success || !res.data.length) {
-						$(autoSel).html('<li style="padding:8px 12px;color:#999">Nema rezultata</li>');
-						return;
-					}
-					$.each(res.data, function(i, item) {
-						$(autoSel).append($('<li>').text(item.title).attr('data-id', item.id));
-					});
-				});
-			}, 300);
-		});
-
-		$(autoSel).on('click', 'li', function() {
-			var id    = $(this).data('id');
-			var title = $(this).text();
-			var list  = $(listSel);
-			var max   = parseInt(list.data('max'), 10);
-			var isSingle   = list.data('single') === 1 || list.data('single') === '1';
-			var inputName  = list.data('input-name');
-
-			if (isSingle) {
-				list.empty();
-			} else if (list.find('li').length >= max) {
-				alert('Maksimalni broj postova je ' + max + '.');
-				$(autoSel).hide();
-				return;
-			}
-			if (!isSingle && list.find('li[data-id="' + id + '"]').length) {
-				$(autoSel).hide();
-				return;
-			}
-			var li = $('<li>').attr('data-id', id).html(
-				'<span class="kompas-drag-handle">&#9776;</span>' +
-				'<span>' + $('<div>').text(title).html() + '</span>' +
-				'<button type="button" class="kompas-remove">&#x2715;</button>' +
-				'<input type="hidden" name="' + inputName + '" value="' + id + '" />'
-			);
-			list.append(li);
-			$(autoSel).hide().empty();
-			$(searchSel).val('');
-		});
-
-		$(document).on('click', function(e) {
-			if (!$(e.target).closest(wrapSel).length) {
-				$(autoSel).hide();
-			}
-		});
-
-		$(document).on('click', listSel + ' .kompas-remove', function() {
-			$(this).closest('li').remove();
-		});
-
-		$(listSel).sortable({ handle: '.kompas-drag-handle', axis: 'y' });
-	}(jQuery));
-	</script>
 	<?php
 }
 

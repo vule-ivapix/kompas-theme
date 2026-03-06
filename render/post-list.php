@@ -60,7 +60,7 @@ $query = new WP_Query( $query_args );
 	</div>
 
 	<?php
-	$pagination = paginate_links( array(
+	$pagination = kompas_paginate_links( array(
 		'base'      => str_replace( 999999999, '%#%', esc_url( get_pagenum_link( 999999999 ) ) ),
 		'format'    => '?paged=%#%',
 		'current'   => $paged,
@@ -69,7 +69,6 @@ $query = new WP_Query( $query_args );
 		'end_size'  => 0,
 		'prev_text' => '&larr;',
 		'next_text' => '&rarr;',
-		'type'      => 'list',
 	) );
 	if ( $pagination ) :
 	?>

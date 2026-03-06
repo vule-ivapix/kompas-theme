@@ -56,8 +56,8 @@ if ( ! $query->have_posts() ) {
 <?php
 $total_pages = $query->max_num_pages;
 if ( $total_pages > 1 ) :
-	echo '<div class="kompas-pagination">';
-	echo paginate_links( array(
+	echo '<nav class="kompas-archive-pagination" aria-label="Пагинација">';
+	echo kompas_paginate_links( array(
 		'total'     => $total_pages,
 		'current'   => $paged,
 		'mid_size'  => 1,
@@ -65,5 +65,5 @@ if ( $total_pages > 1 ) :
 		'prev_text' => '&#8592;',
 		'next_text' => '&#8594;',
 	) );
-	echo '</div>';
+	echo '</nav>';
 endif;

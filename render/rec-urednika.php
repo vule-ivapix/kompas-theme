@@ -8,8 +8,6 @@ $post_id        = $option_post_id > 0 ? $option_post_id : ( ! empty( $attributes
 $title         = ! empty( $attributes['title'] ) ? $attributes['title'] : 'РЕЧ УРЕДНИКА';
 $link_text     = ! empty( $attributes['linkText'] ) ? $attributes['linkText'] : 'ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ';
 $category_slug = ! empty( $attributes['categorySlug'] ) ? $attributes['categorySlug'] : 'rec-urednika';
-$image_url     = ! empty( $attributes['imageUrl'] ) ? $attributes['imageUrl'] : '';
-
 if ( $post_id ) {
 	$post = get_post( $post_id );
 } else {
@@ -31,6 +29,10 @@ if ( ! $post ) {
 }
 
 $post_link = get_permalink( $post );
+
+// Slika: wp_options (settings) → block atribut → ništa.
+$option_image = (string) get_option( 'kompas_rec_urednika_image_url', '' );
+$image_url    = $option_image !== '' ? $option_image : ( ! empty( $attributes['imageUrl'] ) ? $attributes['imageUrl'] : '' );
 
 // Category archive link for "ПОГЛЕДАЈ СВЕ НАСЛОВНИЦЕ".
 $cat_link = '';
