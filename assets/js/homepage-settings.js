@@ -31,6 +31,7 @@
 		var input  = $(this);
 		var autoId = input.data('auto');
 		var uid    = autoId;
+		var catId  = input.closest('.kompas-catgrid-entry').data('cat-id') || '';
 
 		clearTimeout(searchTimers[uid]);
 		var q = input.val();
@@ -40,7 +41,8 @@
 			$.get(kompasSettings.ajaxUrl, {
 				action: 'kompas_search_posts',
 				q: q,
-				nonce: kompasSettings.nonce
+				nonce: kompasSettings.nonce,
+				cat_id: catId
 			}, function (res) {
 				$(autoId).empty().show();
 				if (!res.success || !res.data.length) {
@@ -184,6 +186,8 @@
 			catAuto.hide().empty();
 			catInput.val('');
 		});
+
+		$('#catgrid-cat-blocks').sortable({ axis: 'y' });
 	}
 
 	// ── Image picker (Reč urednika) ───────────────────────────────

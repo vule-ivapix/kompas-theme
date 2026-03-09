@@ -3617,15 +3617,20 @@ function kompas_ajax_search_posts() {
 	if ( ! current_user_can( 'edit_posts' ) ) {
 		wp_die( -1 );
 	}
-	$query = sanitize_text_field( wp_unslash( isset( $_GET['q'] ) ? $_GET['q'] : '' ) );
+	$query  = sanitize_text_field( wp_unslash( isset( $_GET['q'] ) ? $_GET['q'] : '' ) );
+	$cat_id = isset( $_GET['cat_id'] ) ? absint( $_GET['cat_id'] ) : 0;
 	if ( mb_strlen( $query ) < 2 ) {
 		wp_send_json_success( array() );
 	}
-	$posts = get_posts( array(
+	$query_args = array(
 		's'              => $query,
 		'posts_per_page' => 10,
 		'post_status'    => 'publish',
-	) );
+	);
+	if ( $cat_id > 0 ) {
+		$query_args['category__in'] = array( $cat_id );
+	}
+	$posts = get_posts( $query_args );
 	$results = array_map( function( $p ) {
 		return array( 'id' => $p->ID, 'title' => get_the_title( $p ) );
 	}, $posts );
