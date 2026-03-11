@@ -47,10 +47,11 @@
 					var found = existing.some( function( e ) { return e.id === m.id; } );
 					if ( ! found ) {
 						existing.push( {
-							id:     m.id,
-							url:    m.url,
-							alt:    m.alt || '',
-							credit: '',
+							id:       m.id,
+							url:      m.url,
+							thumbUrl: ( m.sizes && m.sizes.medium && m.sizes.medium.url ) ? m.sizes.medium.url : m.url,
+							alt:      m.alt || '',
+							credit:   '',
 						} );
 					}
 				} );

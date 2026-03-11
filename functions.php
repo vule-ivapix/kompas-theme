@@ -404,6 +404,57 @@ function kompas_enqueue_gallery_slider_script() {
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_gallery_slider_script' );
 
 /**
+ * Expose kompas_image_source attachment meta via REST (needed by photo-gallery editor).
+ */
+function kompas_register_image_source_rest_meta() {
+	register_post_meta( 'attachment', 'kompas_image_source', array(
+		'type'          => 'string',
+		'single'        => true,
+		'show_in_rest'  => true,
+		'auth_callback' => static function () {
+			return current_user_can( 'edit_posts' );
+		},
+	) );
+}
+add_action( 'init', 'kompas_register_image_source_rest_meta' );
+
+/**
+ * Register Photo Gallery block.
+ */
+function kompas_register_photo_gallery_block() {
+	wp_register_script(
+		'kompas-photo-gallery-editor',
+		get_theme_file_uri( 'assets/js/photo-gallery-editor.js' ),
+		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-api-fetch' ),
+		KOMPAS_VERSION,
+		true
+	);
+	register_block_type( get_theme_file_path( 'blocks/photo-gallery' ) );
+}
+add_action( 'init', 'kompas_register_photo_gallery_block' );
+
+/**
+ * Enqueue photo gallery frontend script.
+ */
+function kompas_enqueue_photo_gallery_script() {
+	if ( is_singular() ) {
+		$path = get_theme_file_path( 'assets/js/photo-gallery.js' );
+		$ver  = KOMPAS_VERSION;
+		if ( file_exists( $path ) ) {
+			$ver .= '.' . (string) filemtime( $path );
+		}
+		wp_enqueue_script(
+			'kompas-photo-gallery',
+			get_theme_file_uri( 'assets/js/photo-gallery.js' ),
+			array(),
+			$ver,
+			true
+		);
+	}
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_photo_gallery_script' );
+
+/**
  * Register post meta for view count (for "most read" functionality).
  */
 function kompas_register_meta() {
@@ -3164,6 +3215,13 @@ add_action( 'admin_notices', 'kompas_render_publish_requirements_notice' );
  */
 function kompas_enforce_publish_requirements_on_insert( $data, $postarr ) {
 	if ( empty( $data['post_type'] ) || 'post' !== $data['post_type'] ) {
+		return $data;
+	}
+
+	// REST publish je pokriven rest_pre_insert_post filterom koji ispravno čita
+	// featured_media iz requesta. wp_insert_post_data ne može da pročita thumbnail
+	// za REST jer se _thumbnail_id setuje tek nakon što wp_insert_post završi.
+	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 		return $data;
 	}
 

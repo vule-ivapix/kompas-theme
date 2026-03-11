@@ -1,0 +1,22 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "kompas/photo-gallery",
+	"title": "Foto galerija",
+	"category": "media",
+	"description": "Grid sa thumbnail slikama; klik otvara lightbox sa navigacijom i izvorom.",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"inserter": true
+	},
+	"attributes": {
+		"images": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"textdomain": "kompas",
+	"editorScript": "kompas-photo-gallery-editor",
+	"render": "file:../../render/photo-gallery.php"
+}

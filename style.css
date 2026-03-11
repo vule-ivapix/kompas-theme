@@ -10,13 +10,18 @@ Tested up to: 6.7
 Requires PHP: 8.0
 Text Domain: kompas
 Tags: full-site-editing, block-theme, blog, news, accessibility-ready
-License: GNU General Public License v2 or later
+License: GwNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
 
 /* ========================================================================
    Base
    ======================================================================== */
+
+/* Temp */
+.archive .kompas-banner {
+    display: none !important;
+}
 
 :root {
 	scroll-behavior: smooth;
@@ -1599,6 +1604,57 @@ body.kompas-mobile-menu-open {
 		height: 36px;
 		font-size: 1.5rem;
 	}
+}
+
+/* Thumbnail strip */
+.kompas-gallery-slider__thumbs {
+	display: flex;
+	gap: 4px;
+	margin-top: 4px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.kompas-gallery-slider__thumbs::-webkit-scrollbar {
+	display: none;
+}
+
+.kompas-gallery-slider__thumbs .kompas-gallery-slider__thumb {
+	flex: 0 0 auto;
+	width: 72px;
+	height: 54px;
+	overflow: hidden;
+	padding: 0;
+	border: 2px solid transparent;
+	background: #111;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.kompas-gallery-slider__thumbs .kompas-gallery-slider__thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.kompas-gallery-slider__thumbs .kompas-gallery-slider__thumb.is-active {
+	border-color: var(--wp--preset--color--primary);
+}
+
+/* Slider lightbox (reuses .kompas-gallery-lb__* classes) */
+#kompas-slider-lb {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 99999;
+	background: rgba(0, 0, 0, 0.92);
+	justify-content: center;
+	align-items: center;
+}
+
+#kompas-slider-lb.is-open {
+	display: flex;
 }
 
 /* ========================================================================
@@ -3214,4 +3270,132 @@ body.kompas-mobile-menu-open {
 	.kompas-archive-with-sidebar--compact-mobile .kompas-post-list__title {
 		font-size: 0.875rem;
 	}
+}
+
+/* =========================================================
+   Foto galerija blok (kompas/photo-gallery)
+   ========================================================= */
+
+.kompas-photo-gallery__grid {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* Prva slika — velika */
+.kompas-photo-gallery__thumb:first-child {
+	aspect-ratio: 16 / 9;
+}
+
+/* Ostale slike — red thumbnaila */
+.kompas-photo-gallery__thumbs-row {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 4px;
+}
+
+.kompas-photo-gallery__thumb {
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	cursor: zoom-in;
+	padding: 0;
+	border: none;
+	background: #111;
+	display: block;
+	width: 100%;
+}
+
+.kompas-photo-gallery__thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 0.2s;
+}
+
+.kompas-photo-gallery__thumb:hover img {
+	transform: scale(1.04);
+}
+
+@media (max-width: 600px) {
+	.kompas-photo-gallery__thumbs-row {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+/* Gallery lightbox */
+
+#kompas-gallery-lb {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 99999;
+	background: rgba(0, 0, 0, 0.92);
+	justify-content: center;
+	align-items: center;
+}
+
+#kompas-gallery-lb.is-open {
+	display: flex;
+}
+
+.kompas-gallery-lb__wrap {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 94vw;
+}
+
+.kompas-gallery-lb__img {
+	max-width: 90vw;
+	max-height: 80vh;
+	object-fit: contain;
+	display: block;
+}
+
+.kompas-gallery-lb__caption {
+	color: #ccc;
+	font-size: 0.8rem;
+	margin: 0.5rem 0 0;
+	text-align: center;
+}
+
+.kompas-gallery-lb__counter {
+	color: #999;
+	font-size: 0.75rem;
+	margin-top: 0.25rem;
+}
+
+.kompas-gallery-lb__close {
+	position: absolute;
+	top: -2.5rem;
+	right: 0;
+	background: none;
+	border: none;
+	color: #fff;
+	font-size: 2.25rem;
+	cursor: pointer;
+	line-height: 1;
+}
+
+.kompas-gallery-lb__prev,
+.kompas-gallery-lb__next {
+	position: fixed;
+	top: 50%;
+	transform: translateY(-50%);
+	background: rgba(0, 0, 0, 0.4);
+	border: none;
+	color: #fff;
+	font-size: 2.5rem;
+	cursor: pointer;
+	padding: 0.5rem 1rem;
+	line-height: 1;
+}
+
+.kompas-gallery-lb__prev {
+	left: 0.5rem;
+}
+
+.kompas-gallery-lb__next {
+	right: 0.5rem;
 }
