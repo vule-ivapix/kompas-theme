@@ -700,12 +700,7 @@ img {
 }
 
 .kompas-mobile-bar__search {
-	display: flex;
-	align-items: center;
-	color: var(--wp--preset--color--dark);
-	flex-shrink: 0;
-	border: none;
-	background: transparent;
+	display: none;
 }
 
 /* Horizontal scroll strips (categories + tags) */
@@ -1906,6 +1901,12 @@ body.kompas-mobile-menu-open {
 	}
 }
 
+.kompas-archive-grid-item__text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
 /* ── Archive Responsive ───────────────────────────────────────── */
 @media (max-width: 781px) {
 	.kompas-archive-hero {
@@ -1994,6 +1995,11 @@ body.kompas-mobile-menu-open {
 		flex: 0 0 38%;
 		max-width: 38%;
 		display: block;
+	}
+
+	.kompas-archive-grid-item__text {
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 
 	.kompas-archive-grid-item .kompas-archive-img {

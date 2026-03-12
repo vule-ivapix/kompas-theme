@@ -1619,12 +1619,14 @@ function kompas_render_archive_layout_kolumne( $attributes = array() ) {
 						 class="kompas-archive-img" />
 				</a>
 				<?php endif; ?>
-				<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
-					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
-				</h4>
-				<?php if ( $author_name ) : ?>
-				<span class="kompas-archive-author"><?php echo esc_html( $author_name ); ?></span>
-				<?php endif; ?>
+				<div class="kompas-archive-grid-item__text">
+					<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
+					</h4>
+					<?php if ( $author_name ) : ?>
+					<span class="kompas-archive-author"><?php echo esc_html( $author_name ); ?></span>
+					<?php endif; ?>
+				</div>
 			</div>
 			<?php endforeach; ?>
 		</div>
