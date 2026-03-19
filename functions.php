@@ -16,6 +16,12 @@ define( 'KOMPAS_AUTHOR_NO_TRANSLATE_META_KEY', 'kompas_author_no_translate' );
 define( 'KOMPAS_TITLE_NO_TRANSLATE_WORDS_META_KEY', 'kompas_title_no_translate_words' );
 define( 'KOMPAS_GLOBAL_NO_TRANSLATE_WORDS_OPTION', 'kompas_global_no_translate_words' );
 define( 'KOMPAS_AUTHOR_ID_META_KEY', 'kompas_author_id' );
+define( 'KOMPAS_VIEWS_META_KEY', 'kompas_views' );
+define( 'KOMPAS_VIEWS_7D_META_KEY', 'kompas_views_7d' );
+define( 'KOMPAS_VIEWS_DAY_META_PREFIX', 'kompas_views_day_' );
+define( 'KOMPAS_VIEWS_7D_SYNC_OPTION', 'kompas_views_7d_last_synced' );
+define( 'KOMPAS_VIEWS_7D_CRON_HOOK', 'kompas_views_7d_sync_event' );
+define( 'KOMPAS_VIEWS_WINDOW_DAYS', 7 );
 
 /**
  * Enqueue Google Fonts with full latin-ext/cyrillic subsets.
@@ -84,6 +90,170 @@ function kompas_enqueue_styles() {
 	}
 }
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_styles' );
+
+/**
+ * Build the PWA manifest URL served by the theme.
+ *
+ * @return string
+ */
+function kompas_get_pwa_manifest_url() {
+	return add_query_arg( 'kompas_pwa_manifest', '1', home_url( '/' ) );
+}
+
+/**
+ * Build the service worker URL served by the theme.
+ *
+ * @return string
+ */
+function kompas_get_pwa_service_worker_url() {
+	return add_query_arg( 'kompas_pwa_sw', '1', home_url( '/' ) );
+}
+
+/**
+ * Enqueue the frontend PWA install prompt script when supported.
+ */
+function kompas_enqueue_pwa_install_script() {
+	if ( is_admin() ) {
+		return;
+	}
+
+	$path = get_theme_file_path( 'assets/js/pwa-install.js' );
+	$ver  = KOMPAS_VERSION;
+	if ( file_exists( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+
+	wp_enqueue_script(
+		'kompas-pwa-install',
+		get_theme_file_uri( 'assets/js/pwa-install.js' ),
+		array(),
+		$ver,
+		true
+	);
+
+	wp_localize_script(
+		'kompas-pwa-install',
+		'kompasPwaInstallData',
+		array(
+			'serviceWorkerUrl' => esc_url_raw( kompas_get_pwa_service_worker_url() ),
+		)
+	);
+}
+add_action( 'wp_enqueue_scripts', 'kompas_enqueue_pwa_install_script' );
+
+/**
+ * Output manifest and mobile app meta tags.
+ */
+function kompas_output_pwa_meta_tags() {
+	if ( is_admin() ) {
+		return;
+	}
+	?>
+	<link rel="manifest" href="<?php echo esc_url( kompas_get_pwa_manifest_url() ); ?>" />
+	<meta name="theme-color" content="#e82d34" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-title" content="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
+	<?php
+}
+add_action( 'wp_head', 'kompas_output_pwa_meta_tags' );
+
+/**
+ * Render the hidden install prompt shell shown after beforeinstallprompt fires.
+ */
+function kompas_render_pwa_install_prompt() {
+	if ( is_admin() ) {
+		return;
+	}
+	?>
+	<div class="kompas-install-prompt" data-kompas-install-prompt hidden aria-hidden="true" aria-live="polite">
+		<div class="kompas-install-prompt__card" aria-labelledby="kompas-install-prompt-title" aria-describedby="kompas-install-prompt-text">
+			<h2 id="kompas-install-prompt-title" class="kompas-install-prompt__title">Инсталирај Компас</h2>
+			<p id="kompas-install-prompt-text" class="kompas-install-prompt__text">Додај Компас на почетни екран ради бржег отварања и искуства налик апликацији.</p>
+			<div class="kompas-install-prompt__actions">
+				<button type="button" class="kompas-install-prompt__button kompas-install-prompt__button--primary" data-kompas-install-action="install">Инсталирај</button>
+				<button type="button" class="kompas-install-prompt__button kompas-install-prompt__button--ghost" data-kompas-install-action="dismiss">Не сада</button>
+			</div>
+		</div>
+	</div>
+	<?php
+}
+add_action( 'wp_footer', 'kompas_render_pwa_install_prompt' );
+
+/**
+ * Get manifest icon entries from the configured site icon.
+ *
+ * @return array<int, array<string, string>>
+ */
+function kompas_get_pwa_manifest_icons() {
+	$icons = array();
+	$icon_id = (int) get_option( 'site_icon' );
+	$type    = $icon_id ? get_post_mime_type( $icon_id ) : '';
+
+	if ( ! $type ) {
+		$type = 'image/png';
+	}
+
+	foreach ( array( 192, 512 ) as $size ) {
+		$icon_url = get_site_icon_url( $size );
+		if ( ! $icon_url ) {
+			continue;
+		}
+
+		$icons[] = array(
+			'src'     => esc_url_raw( $icon_url ),
+			'sizes'   => sprintf( '%1$dx%1$d', $size ),
+			'type'    => $type,
+			'purpose' => 'any',
+		);
+	}
+
+	return $icons;
+}
+
+/**
+ * Serve the PWA manifest and service worker directly from the theme.
+ */
+function kompas_maybe_serve_pwa_assets() {
+	if ( is_admin() ) {
+		return;
+	}
+
+	if ( isset( $_GET['kompas_pwa_manifest'] ) ) {
+		$site_name        = wp_strip_all_tags( get_bloginfo( 'name' ) );
+		$site_description = wp_strip_all_tags( get_bloginfo( 'description' ) );
+		$manifest         = array(
+			'id'               => home_url( '/' ),
+			'name'             => $site_name ? $site_name : 'Kompas',
+			'short_name'       => $site_name ? wp_html_excerpt( $site_name, 12, '' ) : 'Kompas',
+			'description'      => $site_description,
+			'lang'             => get_bloginfo( 'language' ),
+			'start_url'        => home_url( '/' ),
+			'scope'            => home_url( '/' ),
+			'display'          => 'standalone',
+			'background_color' => '#fdfcf9',
+			'theme_color'      => '#e82d34',
+			'icons'            => kompas_get_pwa_manifest_icons(),
+		);
+
+		status_header( 200 );
+		nocache_headers();
+		header( 'Content-Type: application/manifest+json; charset=UTF-8' );
+		echo wp_json_encode( $manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		exit;
+	}
+
+	if ( isset( $_GET['kompas_pwa_sw'] ) ) {
+		status_header( 200 );
+		header( 'Content-Type: application/javascript; charset=UTF-8' );
+		header( 'Cache-Control: no-cache, must-revalidate, max-age=0' );
+		header( 'Service-Worker-Allowed: /' );
+		echo "self.addEventListener('install', function() { self.skipWaiting(); });\n";
+		echo "self.addEventListener('activate', function(event) { event.waitUntil(self.clients.claim()); });\n";
+		echo "self.addEventListener('fetch', function() {});\n";
+		exit;
+	}
+}
+add_action( 'template_redirect', 'kompas_maybe_serve_pwa_assets', 0 );
 
 /**
  * ── CPT: kompas_autor ─────────────────────────────────────────
@@ -374,7 +544,7 @@ function kompas_register_gallery_slider_block() {
 	wp_register_script(
 		'kompas-gallery-editor',
 		get_theme_file_uri( 'assets/js/gallery-editor.js' ),
-		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components' ),
+		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-api-fetch' ),
 		KOMPAS_VERSION,
 		true
 	);
@@ -404,7 +574,7 @@ function kompas_enqueue_gallery_slider_script() {
 add_action( 'wp_enqueue_scripts', 'kompas_enqueue_gallery_slider_script' );
 
 /**
- * Expose kompas_image_source attachment meta via REST (needed by photo-gallery editor).
+ * Expose kompas_image_source attachment meta via REST for gallery editors.
  */
 function kompas_register_image_source_rest_meta() {
 	register_post_meta( 'attachment', 'kompas_image_source', array(
@@ -419,46 +589,190 @@ function kompas_register_image_source_rest_meta() {
 add_action( 'init', 'kompas_register_image_source_rest_meta' );
 
 /**
+ * Return normalized attachment image source text.
+ */
+function kompas_get_attachment_image_source( $attachment_id ) {
+	$attachment_id = absint( $attachment_id );
+	if ( $attachment_id <= 0 ) {
+		return '';
+	}
+
+	return trim( (string) get_post_meta( $attachment_id, 'kompas_image_source', true ) );
+}
+
+/**
+ * Normalize gallery images across gallery-slider and legacy photo-gallery blocks.
+ */
+function kompas_normalize_gallery_images( $images ) {
+	$normalized = array();
+
+	foreach ( (array) $images as $image ) {
+		if ( ! is_array( $image ) ) {
+			continue;
+		}
+
+		$id                   = isset( $image['id'] ) ? absint( $image['id'] ) : 0;
+		$base_url             = ! empty( $image['url'] ) ? (string) $image['url'] : '';
+		$full_url             = ! empty( $image['fullUrl'] ) ? (string) $image['fullUrl'] : '';
+		$thumb                = ! empty( $image['thumbUrl'] ) ? (string) $image['thumbUrl'] : '';
+		$attachment_full_url  = '';
+		$attachment_thumb_url = '';
+
+		if ( $id > 0 ) {
+			$attachment_full_url = wp_get_attachment_image_url( $id, 'full' );
+			if ( ! $attachment_full_url ) {
+				$attachment_full_url = wp_get_attachment_url( $id );
+			}
+
+			$attachment_thumb_url = wp_get_attachment_image_url( $id, 'medium' );
+			if ( ! $attachment_thumb_url ) {
+				$attachment_thumb_url = $attachment_full_url;
+			}
+		}
+
+		$url = $full_url ? $full_url : $base_url;
+		if ( '' === $url ) {
+			$url = $attachment_full_url ? $attachment_full_url : $thumb;
+		}
+
+		if ( '' === $thumb ) {
+			if ( $base_url && $base_url !== $url ) {
+				$thumb = $base_url;
+			} elseif ( $attachment_thumb_url ) {
+				$thumb = $attachment_thumb_url;
+			} else {
+				$thumb = $url;
+			}
+		}
+
+		if ( '' === $url ) {
+			continue;
+		}
+
+		if ( $id > 0 ) {
+			$credit = kompas_get_attachment_image_source( $id );
+		} elseif ( ! empty( $image['credit'] ) ) {
+			$credit = (string) $image['credit'];
+		} elseif ( ! empty( $image['source'] ) ) {
+			$credit = (string) $image['source'];
+		} else {
+			$credit = '';
+		}
+
+		$normalized[] = array(
+			'id'       => $id,
+			'url'      => $url,
+			'thumbUrl' => $thumb ? $thumb : $url,
+			'alt'      => ! empty( $image['alt'] ) ? (string) $image['alt'] : '',
+			'credit'   => $credit,
+		);
+	}
+
+	return $normalized;
+}
+
+/**
+ * Shared frontend markup for gallery-like blocks.
+ */
+function kompas_render_gallery_slider_markup( $images ) {
+	$images = kompas_normalize_gallery_images( $images );
+
+	if ( empty( $images ) ) {
+		return '';
+	}
+
+	$total = count( $images );
+	$uid   = 'kompas-slider-' . wp_unique_id();
+
+	ob_start();
+	?>
+	<div class="kompas-gallery-slider" id="<?php echo esc_attr( $uid ); ?>">
+
+		<div class="kompas-gallery-slider__viewport">
+			<?php foreach ( $images as $index => $img ) :
+				$url    = $img['url'];
+				$thumb  = $img['thumbUrl'];
+				$alt    = $img['alt'];
+				$credit = $img['credit'];
+				$hidden = $index > 0 ? ' style="display:none"' : '';
+			?>
+			<div
+				class="kompas-gallery-slider__slide"
+				data-index="<?php echo esc_attr( $index ); ?>"
+				data-full="<?php echo esc_url( $url ); ?>"
+				data-credit="<?php echo esc_attr( $credit ); ?>"
+				<?php echo $hidden; ?>
+			>
+				<img
+					src="<?php echo esc_url( $url ); ?>"
+					alt="<?php echo esc_attr( $alt ); ?>"
+					class="kompas-gallery-slider__img"
+					style="cursor:zoom-in"
+				/>
+				<?php if ( $credit ) : ?>
+				<span class="kompas-image-source kompas-gallery-slider__source">
+					<span class="kompas-image-source-label">ФОТО:</span>
+					<?php echo esc_html( $credit ); ?>
+				</span>
+				<?php endif; ?>
+			</div>
+			<?php endforeach; ?>
+
+			<?php if ( $total > 1 ) : ?>
+			<button class="kompas-gallery-slider__arrow kompas-gallery-slider__arrow--prev" type="button" aria-label="Претходна">&lsaquo;</button>
+			<button class="kompas-gallery-slider__arrow kompas-gallery-slider__arrow--next" type="button" aria-label="Следећа">&rsaquo;</button>
+			<?php endif; ?>
+
+			<div class="kompas-gallery-slider__fraction">
+				<span class="kompas-gallery-slider__current">1</span>/<?php echo esc_html( $total ); ?>
+			</div>
+		</div>
+
+		<?php if ( $total > 1 ) : ?>
+		<div class="kompas-gallery-slider__thumbs">
+			<div class="kompas-gallery-slider__thumbs-track">
+			<?php foreach ( $images as $index => $img ) :
+				$active = $index === 0 ? ' is-active' : '';
+			?>
+			<button
+				class="kompas-gallery-slider__thumb<?php echo esc_attr( $active ); ?>"
+				type="button"
+				data-index="<?php echo esc_attr( $index ); ?>"
+				aria-label="Слика <?php echo esc_attr( $index + 1 ); ?>"
+			>
+				<img src="<?php echo esc_url( $img['thumbUrl'] ); ?>" alt="<?php echo esc_attr( $img['alt'] ); ?>" loading="lazy" />
+			</button>
+			<?php endforeach; ?>
+			</div>
+		</div>
+		<?php endif; ?>
+	</div>
+	<?php
+
+	return ob_get_clean();
+}
+
+/**
  * Register Photo Gallery block.
  */
 function kompas_register_photo_gallery_block() {
-	wp_register_script(
-		'kompas-photo-gallery-editor',
-		get_theme_file_uri( 'assets/js/photo-gallery-editor.js' ),
-		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-api-fetch' ),
-		KOMPAS_VERSION,
-		true
-	);
 	register_block_type( get_theme_file_path( 'blocks/photo-gallery' ) );
 }
 add_action( 'init', 'kompas_register_photo_gallery_block' );
 
 /**
- * Enqueue photo gallery frontend script.
- */
-function kompas_enqueue_photo_gallery_script() {
-	if ( is_singular() ) {
-		$path = get_theme_file_path( 'assets/js/photo-gallery.js' );
-		$ver  = KOMPAS_VERSION;
-		if ( file_exists( $path ) ) {
-			$ver .= '.' . (string) filemtime( $path );
-		}
-		wp_enqueue_script(
-			'kompas-photo-gallery',
-			get_theme_file_uri( 'assets/js/photo-gallery.js' ),
-			array(),
-			$ver,
-			true
-		);
-	}
-}
-add_action( 'wp_enqueue_scripts', 'kompas_enqueue_photo_gallery_script' );
-
-/**
  * Register post meta for view count (for "most read" functionality).
  */
 function kompas_register_meta() {
-	register_post_meta( 'post', 'kompas_views', array(
+	register_post_meta( 'post', KOMPAS_VIEWS_META_KEY, array(
+		'show_in_rest'  => true,
+		'single'        => true,
+		'type'          => 'integer',
+		'default'       => 0,
+		'auth_callback' => '__return_true',
+	) );
+
+	register_post_meta( 'post', KOMPAS_VIEWS_7D_META_KEY, array(
 		'show_in_rest'  => true,
 		'single'        => true,
 		'type'          => 'integer',
@@ -509,6 +823,173 @@ function kompas_register_meta() {
 	) );
 }
 add_action( 'init', 'kompas_register_meta' );
+
+/**
+ * Return the current site-local date object used for view buckets.
+ *
+ * @return DateTimeImmutable
+ */
+function kompas_get_views_reference_date() {
+	return new DateTimeImmutable( 'now', wp_timezone() );
+}
+
+/**
+ * Build the postmeta key for a daily views bucket.
+ *
+ * @param DateTimeInterface|null $date Site-local date object.
+ * @return string
+ */
+function kompas_get_views_day_meta_key( $date = null ) {
+	if ( ! $date instanceof DateTimeInterface ) {
+		$date = kompas_get_views_reference_date();
+	}
+
+	return KOMPAS_VIEWS_DAY_META_PREFIX . $date->format( 'Ymd' );
+}
+
+/**
+ * Build the oldest bucket key still included in the 7-day window.
+ *
+ * @param DateTimeInterface|null $date Site-local date object.
+ * @return string
+ */
+function kompas_get_views_window_start_meta_key( $date = null ) {
+	if ( ! $date instanceof DateTimeInterface ) {
+		$date = kompas_get_views_reference_date();
+	}
+
+	$start = DateTimeImmutable::createFromInterface( $date )
+		->modify( '-' . ( KOMPAS_VIEWS_WINDOW_DAYS - 1 ) . ' days' );
+
+	return kompas_get_views_day_meta_key( $start );
+}
+
+/**
+ * Return query args fragment for supported post ordering modes.
+ *
+ * @param string $orderby Ordering mode.
+ * @return array<string, mixed>
+ */
+function kompas_get_post_ordering_args( $orderby ) {
+	if ( 'views_7d' === $orderby ) {
+		return array(
+			'meta_key'  => KOMPAS_VIEWS_7D_META_KEY,
+			'meta_type' => 'NUMERIC',
+			'orderby'   => array(
+				'meta_value_num' => 'DESC',
+				'date'           => 'DESC',
+			),
+		);
+	}
+
+	if ( 'views' === $orderby ) {
+		return array(
+			'meta_key'  => KOMPAS_VIEWS_META_KEY,
+			'meta_type' => 'NUMERIC',
+			'orderby'   => array(
+				'meta_value_num' => 'DESC',
+				'date'           => 'DESC',
+			),
+		);
+	}
+
+	return array(
+		'orderby' => 'date',
+		'order'   => 'DESC',
+	);
+}
+
+/**
+ * Schedule the daily sync job for 7-day views.
+ */
+function kompas_schedule_views_7d_sync() {
+	if ( wp_next_scheduled( KOMPAS_VIEWS_7D_CRON_HOOK ) ) {
+		return;
+	}
+
+	wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', KOMPAS_VIEWS_7D_CRON_HOOK );
+}
+add_action( 'init', 'kompas_schedule_views_7d_sync' );
+
+/**
+ * Remove the scheduled sync job when the theme is switched.
+ */
+function kompas_unschedule_views_7d_sync() {
+	$timestamp = wp_next_scheduled( KOMPAS_VIEWS_7D_CRON_HOOK );
+	if ( $timestamp ) {
+		wp_unschedule_event( $timestamp, KOMPAS_VIEWS_7D_CRON_HOOK );
+	}
+}
+add_action( 'switch_theme', 'kompas_unschedule_views_7d_sync' );
+
+/**
+ * Recalculate rolling 7-day view totals and prune stale daily buckets.
+ */
+function kompas_sync_views_7d_meta() {
+	global $wpdb;
+
+	$today      = kompas_get_views_reference_date();
+	$today_ymd  = $today->format( 'Y-m-d' );
+	$window_key = kompas_get_views_window_start_meta_key( $today );
+	$like_key   = $wpdb->esc_like( KOMPAS_VIEWS_DAY_META_PREFIX ) . '%';
+
+	$wpdb->query(
+		$wpdb->prepare(
+			"DELETE FROM {$wpdb->postmeta}
+			WHERE meta_key LIKE %s
+			  AND meta_key < %s",
+			$like_key,
+			$window_key
+		)
+	);
+
+	delete_post_meta_by_key( KOMPAS_VIEWS_7D_META_KEY );
+
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT pm.post_id, SUM(CAST(pm.meta_value AS UNSIGNED)) AS total
+			FROM {$wpdb->postmeta} pm
+			INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			WHERE pm.meta_key LIKE %s
+			  AND pm.meta_key >= %s
+			  AND p.post_type = %s
+			GROUP BY pm.post_id",
+			$like_key,
+			$window_key,
+			'post'
+		),
+		ARRAY_A
+	);
+
+	foreach ( $rows as $row ) {
+		$post_id = isset( $row['post_id'] ) ? (int) $row['post_id'] : 0;
+		$total   = isset( $row['total'] ) ? (int) $row['total'] : 0;
+
+		if ( $post_id > 0 && $total > 0 ) {
+			update_post_meta( $post_id, KOMPAS_VIEWS_7D_META_KEY, $total );
+		}
+	}
+
+	update_option( KOMPAS_VIEWS_7D_SYNC_OPTION, $today_ymd, false );
+}
+add_action( KOMPAS_VIEWS_7D_CRON_HOOK, 'kompas_sync_views_7d_meta' );
+
+/**
+ * Run a lazy sync when the date changes and WP-Cron has not fired yet.
+ */
+function kompas_maybe_sync_views_7d() {
+	if ( is_admin() ) {
+		return;
+	}
+
+	$today_ymd = kompas_get_views_reference_date()->format( 'Y-m-d' );
+	if ( get_option( KOMPAS_VIEWS_7D_SYNC_OPTION ) === $today_ymd ) {
+		return;
+	}
+
+	kompas_sync_views_7d_meta();
+}
+add_action( 'wp', 'kompas_maybe_sync_views_7d', 1 );
 
 /**
  * Parse comma/newline separated no-translate words.
@@ -605,7 +1086,7 @@ function kompas_render_global_no_translate_words_field() {
 		rows="6"
 		class="large-text"
 		placeholder="OpenAI, NATO, iPhone"><?php echo esc_textarea( $value ); ?></textarea>
-	<p class="description">Речи раздвајај зарезом или новим редом.</p>
+	<p class="description">Речи или фразе раздвајај зарезом или новим редом. Штите се само као целе речи/фразе.</p>
 	<?php
 }
 
@@ -825,7 +1306,7 @@ function kompas_render_custom_author_meta_box( $post ) {
 		/>
 	</p>
 	<p class="description">
-		Унеси речи раздвојене зарезом. Биће приказане у изворном писму без обзира на ЋИР/ЛАТ прекидач.
+		Унеси речи или фразе раздвојене зарезом. Биће приказане у изворном писму без обзира на ЋИР/ЛАТ прекидач и штите се само као целе речи/фразе.
 	</p>
 	<?php
 }
@@ -898,6 +1379,24 @@ function kompas_get_cpt_author_archive_url( $cpt_author_id ) {
 	}
 
 	$url = get_permalink( $cpt_post );
+	return $url ? (string) $url : '';
+}
+
+/**
+ * Get featured image URL for a valid custom CPT author.
+ */
+function kompas_get_cpt_author_photo_url( $cpt_author_id, $size = 'thumbnail' ) {
+	$cpt_author_id = (int) $cpt_author_id;
+	if ( $cpt_author_id <= 0 ) {
+		return '';
+	}
+
+	$cpt_post = get_post( $cpt_author_id );
+	if ( ! $cpt_post || 'kompas_autor' !== $cpt_post->post_type || 'publish' !== $cpt_post->post_status ) {
+		return '';
+	}
+
+	$url = get_the_post_thumbnail_url( $cpt_author_id, $size );
 	return $url ? (string) $url : '';
 }
 
@@ -1101,9 +1600,19 @@ add_filter( 'render_block_core/post-title', 'kompas_truncate_post_title_block_in
  */
 function kompas_track_views() {
 	if ( is_singular( 'post' ) && ! is_admin() ) {
-		$post_id = get_the_ID();
-		$views   = (int) get_post_meta( $post_id, 'kompas_views', true );
-		update_post_meta( $post_id, 'kompas_views', $views + 1 );
+		$post_id = (int) get_queried_object_id();
+		if ( $post_id <= 0 ) {
+			return;
+		}
+
+		$bucket_key = kompas_get_views_day_meta_key();
+		$views      = (int) get_post_meta( $post_id, KOMPAS_VIEWS_META_KEY, true );
+		$views_7d   = (int) get_post_meta( $post_id, KOMPAS_VIEWS_7D_META_KEY, true );
+		$daily      = (int) get_post_meta( $post_id, $bucket_key, true );
+
+		update_post_meta( $post_id, KOMPAS_VIEWS_META_KEY, $views + 1 );
+		update_post_meta( $post_id, KOMPAS_VIEWS_7D_META_KEY, $views_7d + 1 );
+		update_post_meta( $post_id, $bucket_key, $daily + 1 );
 	}
 }
 add_action( 'wp', 'kompas_track_views' );
@@ -1131,8 +1640,8 @@ add_action( 'wp_enqueue_scripts', 'kompas_enqueue_tabs_script' );
  * Render the Najnovije/Najčitanije tabs section.
  *
  * Both tabs support manual post selection.
- * Fallback behavior: if no manual selection is provided (or list is shorter than count),
- * remaining slots are filled with latest posts by date.
+ * Najnovije auto-fills by publish date.
+ * Najčitanije auto-fills by rolling 7-day views.
  */
 function kompas_render_tabs_block( $attributes ) {
 	$count = isset( $attributes['count'] ) ? max( 1, (int) $attributes['count'] ) : 6;
@@ -1186,13 +1695,11 @@ function kompas_render_tabs_block( $attributes ) {
 		$exclude     = wp_list_pluck( $najcitanije, 'ID' );
 		$najcitanije = array_merge(
 			$najcitanije,
-			get_posts( array(
+			get_posts( array_merge( array(
 				'posts_per_page' => $count - count( $najcitanije ),
 				'post_status'    => 'publish',
-				'orderby'        => 'date',
-				'order'          => 'DESC',
 				'post__not_in'   => $exclude,
-			) )
+			), kompas_get_post_ordering_args( 'views_7d' ) ) )
 		);
 	}
 
@@ -1351,6 +1858,9 @@ function kompas_render_footer_categories( $attributes = array() ) {
  * Render the "Povezane vesti" section as a reusable dynamic block.
  */
 function kompas_render_related_posts_block( $attributes = array(), $exclude_id = 0 ) {
+	// Track already rendered related posts per single post during the current request.
+	static $rendered_related_posts = array();
+
 	$title         = isset( $attributes['title'] ) ? trim( (string) $attributes['title'] ) : 'ПОВЕЗАНЕ ВЕСТИ';
 	$posts_to_show = isset( $attributes['postsToShow'] ) ? (int) $attributes['postsToShow'] : 4;
 	$posts_to_show = max( 1, min( 12, $posts_to_show ) );
@@ -1371,6 +1881,16 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 	$exclude_ids = array();
 	if ( $source_post_id > 0 ) {
 		$exclude_ids[] = $source_post_id;
+	}
+
+	$should_continue_related_posts = $source_post_id > 0 && is_singular( 'post' ) && (int) get_queried_object_id() === $source_post_id;
+	if ( $should_continue_related_posts && ! empty( $rendered_related_posts[ $source_post_id ] ) ) {
+		$exclude_ids = array_unique(
+			array_merge(
+				$exclude_ids,
+				array_values( array_filter( array_map( 'absint', (array) $rendered_related_posts[ $source_post_id ] ) ) )
+			)
+		);
 	}
 
 	$posts = array();
@@ -1488,6 +2008,17 @@ function kompas_render_related_posts_block( $attributes = array(), $exclude_id =
 		return '';
 	}
 
+	if ( $should_continue_related_posts ) {
+		$rendered_related_posts[ $source_post_id ] = array_values(
+			array_unique(
+				array_merge(
+					isset( $rendered_related_posts[ $source_post_id ] ) ? (array) $rendered_related_posts[ $source_post_id ] : array(),
+					wp_list_pluck( $posts, 'ID' )
+				)
+			)
+		);
+	}
+
 	ob_start();
 	?>
 	<div class="wp-block-group alignwide" style="border-top-color:var(--wp--preset--color--border);border-top-width:1px;border-bottom-color:var(--wp--preset--color--border);border-bottom-width:1px;padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)">
@@ -1572,6 +2103,74 @@ function kompas_paginate_links( $args ) {
 }
 
 /**
+ * Render responsive archive thumbnails with context-aware sizes hints.
+ */
+function kompas_get_archive_post_thumbnail( $post, $context = 'grid-small' ) {
+	$post = get_post( $post );
+	if ( ! $post || ! has_post_thumbnail( $post ) ) {
+		return '';
+	}
+
+	$contexts = array(
+		'hero-main'    => array(
+			'size'          => 'large',
+			'class'         => 'kompas-archive-img kompas-archive-img--hero',
+			'sizes'         => '(max-width: 781px) 100vw, (max-width: 1440px) 75vw, 1020px',
+			'loading'       => 'eager',
+			'fetchpriority' => 'high',
+		),
+		'hero-card'    => array(
+			'size'    => 'large',
+			'class'   => 'kompas-archive-img',
+			'sizes'   => '(max-width: 781px) 38vw, (max-width: 1440px) 37vw, 500px',
+			'loading' => 'lazy',
+		),
+		'grid-large'   => array(
+			'size'    => 'large',
+			'class'   => 'kompas-archive-img',
+			'sizes'   => '(max-width: 781px) 38vw, (max-width: 1440px) 50vw, 680px',
+			'loading' => 'lazy',
+		),
+		'grid-small'   => array(
+			'size'    => 'large',
+			'class'   => 'kompas-archive-img',
+			'sizes'   => '(max-width: 781px) 38vw, (max-width: 1440px) 25vw, 320px',
+			'loading' => 'lazy',
+		),
+		'kolumne-grid' => array(
+			'size'    => 'large',
+			'class'   => 'kompas-archive-img',
+			'sizes'   => '(max-width: 781px) 38vw, (max-width: 1440px) 33vw, 430px',
+			'loading' => 'lazy',
+		),
+	);
+
+	$config   = isset( $contexts[ $context ] ) ? $contexts[ $context ] : $contexts['grid-small'];
+	$thumb_id = get_post_thumbnail_id( $post );
+	$alt      = trim( (string) get_post_meta( $thumb_id, '_wp_attachment_image_alt', true ) );
+
+	if ( '' === $alt ) {
+		$alt = get_the_title( $post );
+	}
+
+	$attr = array(
+		'class' => $config['class'],
+		'alt'   => $alt,
+		'sizes' => $config['sizes'],
+	);
+
+	if ( ! empty( $config['loading'] ) ) {
+		$attr['loading'] = $config['loading'];
+	}
+
+	if ( ! empty( $config['fetchpriority'] ) ) {
+		$attr['fetchpriority'] = $config['fetchpriority'];
+	}
+
+	return get_the_post_thumbnail( $post, $config['size'], $attr );
+}
+
+/**
  * Render kolumne archive layout: 3-kolona grid bez hero sekcije.
  */
 function kompas_render_archive_layout_kolumne( $attributes = array() ) {
@@ -1610,17 +2209,16 @@ function kompas_render_archive_layout_kolumne( $attributes = array() ) {
 				if ( ! empty( $custom_author ) ) {
 					$author_name = $custom_author;
 				}
-			?>
-			<div class="kompas-archive-grid-item">
-				<?php if ( has_post_thumbnail( $p ) ) : ?>
-				<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
-					<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'medium' ) ); ?>"
-						 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
-						 class="kompas-archive-img" />
-				</a>
-				<?php endif; ?>
-				<div class="kompas-archive-grid-item__text">
-					<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+				?>
+				<div class="kompas-archive-grid-item">
+					<?php $thumb_html = kompas_get_archive_post_thumbnail( $p, 'kolumne-grid' ); ?>
+					<?php if ( $thumb_html ) : ?>
+					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
+						<?php echo $thumb_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					</a>
+					<?php endif; ?>
+					<div class="kompas-archive-grid-item__text">
+						<h4 class="kompas-archive-title kompas-archive-title--sm"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
 						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 					</h4>
 					<?php if ( $author_name ) : ?>
@@ -1736,38 +2334,36 @@ function kompas_render_archive_layout( $attributes = array() ) {
 		$hero_main  = isset( $hero_posts[0] ) ? $hero_posts[0] : null;
 		$hero_horiz = array_slice( $hero_posts, 1, 4 );
 		?>
-		<div class="kompas-archive-hero">
+			<div class="kompas-archive-hero">
 
-			<div class="kompas-archive-hero-left">
-				<?php if ( $hero_main ) : ?>
-				<div class="kompas-archive-hero-main">
-					<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>">
-						<?php if ( has_post_thumbnail( $hero_main ) ) : ?>
-						<img src="<?php echo esc_url( get_the_post_thumbnail_url( $hero_main, 'large' ) ); ?>"
-							 alt="<?php echo esc_attr( get_the_title( $hero_main ) ); ?>"
-							 class="kompas-archive-img kompas-archive-img--hero" />
-						<?php endif; ?>
-					</a>
-					<h2 class="kompas-archive-title kompas-archive-title--lg"<?php echo kompas_get_post_title_no_translate_data_attr( $hero_main->ID ); ?>>
-						<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $hero_main ) ) ); ?></a>
+				<div class="kompas-archive-hero-left">
+					<?php $hero_main_thumb = $hero_main ? kompas_get_archive_post_thumbnail( $hero_main, 'hero-main' ) : ''; ?>
+					<?php if ( $hero_main ) : ?>
+					<div class="kompas-archive-hero-main">
+						<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>">
+							<?php if ( $hero_main_thumb ) : ?>
+							<?php echo $hero_main_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<?php endif; ?>
+						</a>
+						<h2 class="kompas-archive-title kompas-archive-title--lg"<?php echo kompas_get_post_title_no_translate_data_attr( $hero_main->ID ); ?>>
+							<a href="<?php echo esc_url( get_permalink( $hero_main ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $hero_main ) ) ); ?></a>
 					</h2>
 					<p class="kompas-archive-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $hero_main ), 30 ) ); ?></p>
 				</div>
 				<?php endif; ?>
 
 				<?php if ( ! empty( $hero_horiz ) ) : ?>
-				<div class="kompas-archive-hero-horiz">
-					<?php foreach ( $hero_horiz as $p ) : ?>
-					<div class="kompas-archive-card-h">
-						<?php if ( has_post_thumbnail( $p ) ) : ?>
-						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" class="kompas-archive-card-h__img">
-							<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, 'medium' ) ); ?>"
-								 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
-								 class="kompas-archive-img" />
-						</a>
-						<?php endif; ?>
-						<div class="kompas-archive-card-h__text">
-							<h3 class="kompas-archive-title kompas-archive-title--md"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+					<div class="kompas-archive-hero-horiz">
+						<?php foreach ( $hero_horiz as $p ) : ?>
+						<div class="kompas-archive-card-h">
+							<?php $thumb_html = kompas_get_archive_post_thumbnail( $p, 'hero-card' ); ?>
+							<?php if ( $thumb_html ) : ?>
+							<a href="<?php echo esc_url( get_permalink( $p ) ); ?>" class="kompas-archive-card-h__img">
+								<?php echo $thumb_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							</a>
+							<?php endif; ?>
+							<div class="kompas-archive-card-h__text">
+								<h3 class="kompas-archive-title kompas-archive-title--md"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
 								<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 							</h3>
 						</div>
@@ -1819,19 +2415,18 @@ function kompas_render_archive_layout( $attributes = array() ) {
 				if ( empty( $row ) ) {
 					break;
 				}
-			?>
-			<div class="kompas-archive-grid-row <?php echo $big ? 'kompas-archive-grid-row--2' : 'kompas-archive-grid-row--4'; ?>">
-				<?php foreach ( $row as $p ) : ?>
-				<div class="kompas-archive-grid-item">
-					<?php if ( has_post_thumbnail( $p ) ) : ?>
-					<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
-						<img src="<?php echo esc_url( get_the_post_thumbnail_url( $p, $big ? 'large' : 'medium' ) ); ?>"
-							 alt="<?php echo esc_attr( get_the_title( $p ) ); ?>"
-							 class="kompas-archive-img" />
-					</a>
-					<?php endif; ?>
-						<h4 class="kompas-archive-title <?php echo $big ? 'kompas-archive-title--md' : 'kompas-archive-title--sm'; ?>"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
-							<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
+				?>
+				<div class="kompas-archive-grid-row <?php echo $big ? 'kompas-archive-grid-row--2' : 'kompas-archive-grid-row--4'; ?>">
+					<?php foreach ( $row as $p ) : ?>
+					<div class="kompas-archive-grid-item">
+						<?php $thumb_html = kompas_get_archive_post_thumbnail( $p, $big ? 'grid-large' : 'grid-small' ); ?>
+						<?php if ( $thumb_html ) : ?>
+						<a href="<?php echo esc_url( get_permalink( $p ) ); ?>">
+							<?php echo $thumb_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						</a>
+						<?php endif; ?>
+							<h4 class="kompas-archive-title <?php echo $big ? 'kompas-archive-title--md' : 'kompas-archive-title--sm'; ?>"<?php echo kompas_get_post_title_no_translate_data_attr( $p->ID ); ?>>
+								<a href="<?php echo esc_url( get_permalink( $p ) ); ?>"><?php echo esc_html( kompas_truncate_title( get_the_title( $p ) ) ); ?></a>
 						</h4>
 					<?php if ( $big ) : ?>
 					<p class="kompas-archive-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt( $p ), 20 ) ); ?></p>
@@ -2511,6 +3106,19 @@ function kompas_hide_author_wrap( $block_content, $block, $instance ) {
 
 	$cpt_author_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
 	if ( $cpt_author_id > 0 ) {
+		$photo_url = kompas_get_cpt_author_photo_url( $cpt_author_id, 'thumbnail' );
+		if (
+			$photo_url &&
+			false === strpos( $block_content, 'wp-block-avatar' ) &&
+			false === strpos( $block_content, 'kompas-author-avatar' )
+		) {
+			$avatar_markup = '<figure class="wp-block-avatar kompas-author-avatar"><img src="' . esc_url( $photo_url ) . '" alt="" class="avatar avatar-40 photo" height="40" width="40" loading="lazy" decoding="async" /></figure>';
+			$updated       = preg_replace( '/(<div\b[^>]*class="[^"]*kompas-author-wrap[^"]*"[^>]*>)/i', '$1' . $avatar_markup, $block_content, 1 );
+			if ( $updated ) {
+				return $updated;
+			}
+		}
+
 		return $block_content;
 	}
 
@@ -2524,10 +3132,23 @@ function kompas_hide_author_wrap( $block_content, $block, $instance ) {
 add_filter( 'render_block_core/group', 'kompas_hide_author_wrap', 10, 3 );
 
 /**
- * Replace avatar block image with CPT author photo when kompas_author_id is set.
- * Handles the core/avatar block used in single-kolumne.html.
+ * Replace dedicated author avatar block image with CPT author photo.
  */
 function kompas_replace_avatar_block_with_cpt_photo( $block_content, $block, $instance ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $block_content;
+	}
+
+	if ( $instance instanceof WP_Block && ! empty( $instance->context['queryId'] ) ) {
+		return $block_content;
+	}
+
+	$class_name = isset( $block['attrs']['className'] ) ? (string) $block['attrs']['className'] : '';
+	$avatar_size = isset( $block['attrs']['size'] ) ? (int) $block['attrs']['size'] : 0;
+	if ( false === strpos( $class_name, 'kompas-author-avatar' ) && ! in_array( $avatar_size, array( 40, 80 ), true ) ) {
+		return $block_content;
+	}
+
 	$post_id = 0;
 	if ( $instance instanceof WP_Block && ! empty( $instance->context['postId'] ) ) {
 		$post_id = (int) $instance->context['postId'];
@@ -2539,14 +3160,18 @@ function kompas_replace_avatar_block_with_cpt_photo( $block_content, $block, $in
 		return $block_content;
 	}
 
-	$cpt_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
-	if ( $cpt_id <= 0 ) {
+	if ( $post_id !== (int) get_queried_object_id() ) {
 		return $block_content;
 	}
 
-	$photo_url = get_the_post_thumbnail_url( $cpt_id, 'thumbnail' );
+	$cpt_id = (int) get_post_meta( $post_id, KOMPAS_AUTHOR_ID_META_KEY, true );
+	if ( $cpt_id <= 0 ) {
+		return '';
+	}
+
+	$photo_url = kompas_get_cpt_author_photo_url( $cpt_id, 'thumbnail' );
 	if ( ! $photo_url ) {
-		return $block_content;
+		return '';
 	}
 
 	$escaped_photo_url = esc_url( $photo_url );
@@ -2714,6 +3339,22 @@ add_filter( 'render_block_core/social-link', 'kompas_fix_share_links', 10, 2 );
  */
 
 /**
+ * Decode HTML entities in titles only when needed for counting/truncation.
+ *
+ * @param string $title The post title.
+ * @return string
+ */
+function kompas_decode_title_entities( $title ) {
+	$title = (string) $title;
+
+	if ( false === strpos( $title, '&' ) ) {
+		return $title;
+	}
+
+	return html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+}
+
+/**
  * Truncate a title to N chars + ellipsis (e.g. 60 + "...").
  *
  * @param string $title  The post title.
@@ -2721,18 +3362,19 @@ add_filter( 'render_block_core/social-link', 'kompas_fix_share_links', 10, 2 );
  * @return string
  */
 function kompas_truncate_title( $title, $length = 60 ) {
-	$title  = (string) $title;
-	$length = (int) $length;
+	$title   = (string) $title;
+	$length  = (int) $length;
+	$decoded = kompas_decode_title_entities( $title );
 
 	if ( $length <= 0 ) {
 		return '';
 	}
 
-	if ( mb_strlen( $title ) <= $length ) {
+	if ( mb_strlen( $decoded, 'UTF-8' ) <= $length ) {
 		return $title;
 	}
 
-	return mb_substr( $title, 0, $length );
+	return mb_substr( $decoded, 0, $length, 'UTF-8' );
 }
 
 /**
@@ -3088,7 +3730,7 @@ function kompas_enqueue_publish_guard() {
 	wp_enqueue_script(
 		'kompas-publish-guard',
 		get_theme_file_uri( 'assets/js/publish-guard.js' ),
-		array( 'wp-data', 'wp-notices', 'wp-edit-post' ),
+		array( 'wp-data', 'wp-notices', 'wp-edit-post', 'wp-api-fetch' ),
 		$ver,
 		true
 	);
@@ -3143,9 +3785,13 @@ add_action( 'admin_enqueue_scripts', 'kompas_enqueue_admin_title_limit' );
 /**
  * Build publish-guard issues for required post fields.
  */
+function kompas_attachment_has_image_source( $attachment_id ) {
+	return '' !== kompas_get_attachment_image_source( $attachment_id );
+}
+
 function kompas_get_publish_requirements_issues( $title, $featured_image_id, $categories ) {
 	$uncategorized_id = (int) get_option( 'default_category', 1 );
-	$title            = wp_strip_all_tags( (string) $title );
+	$title            = kompas_decode_title_entities( wp_strip_all_tags( (string) $title ) );
 	$title_len        = function_exists( 'mb_strlen' ) ? mb_strlen( $title ) : strlen( $title );
 	$categories       = array_values( array_unique( array_map( 'absint', (array) $categories ) ) );
 	$real_categories  = array_values(
@@ -3161,6 +3807,8 @@ function kompas_get_publish_requirements_issues( $title, $featured_image_id, $ca
 
 	if ( absint( $featured_image_id ) <= 0 ) {
 		$issues[] = 'naslovna slika nije postavljena';
+	} elseif ( ! kompas_attachment_has_image_source( $featured_image_id ) ) {
+		$issues[] = 'naslovna slika nema upisan izvor fotografije';
 	}
 
 	if ( $title_len > 60 ) {

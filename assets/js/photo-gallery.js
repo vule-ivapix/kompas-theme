@@ -5,6 +5,13 @@
 	var currentGallery = [];
 	var currentIndex   = 0;
 
+	function closeOtherLightboxes() {
+		var other = document.getElementById( 'kompas-slider-lb' );
+		if ( other ) {
+			other.classList.remove( 'is-open' );
+		}
+	}
+
 	function createLightbox() {
 		if ( document.getElementById( 'kompas-gallery-lb' ) ) return;
 
@@ -14,7 +21,9 @@
 		lb.setAttribute( 'aria-modal', 'true' );
 
 		var wrap = document.createElement( 'div' );
+		var mediaWrap = document.createElement( 'div' );
 		wrap.className = 'kompas-gallery-lb__wrap';
+		mediaWrap.className = 'kompas-gallery-lb__media';
 
 		lbClose = document.createElement( 'button' );
 		lbClose.className   = 'kompas-gallery-lb__close';
@@ -43,11 +52,13 @@
 		lbCounter = document.createElement( 'span' );
 		lbCounter.className = 'kompas-gallery-lb__counter';
 
+		mediaWrap.appendChild( lbImg );
+		mediaWrap.appendChild( lbCaption );
+
 		wrap.appendChild( lbClose );
 		wrap.appendChild( lbPrev );
-		wrap.appendChild( lbImg );
+		wrap.appendChild( mediaWrap );
 		wrap.appendChild( lbNext );
-		wrap.appendChild( lbCaption );
 		wrap.appendChild( lbCounter );
 		lb.appendChild( wrap );
 		document.body.appendChild( lb );
@@ -65,6 +76,7 @@
 	}
 
 	function openAt( gallery, index ) {
+		closeOtherLightboxes();
 		currentGallery = gallery;
 		currentIndex   = index;
 		showCurrent();
@@ -88,6 +100,7 @@
 		lbImg.src     = item.full;
 		lbImg.alt     = item.alt;
 		lbCaption.textContent = item.source ? 'Фото: ' + item.source : '';
+		lbCaption.style.display = item.source ? '' : 'none';
 		lbCounter.textContent = ( currentIndex + 1 ) + ' / ' + currentGallery.length;
 
 		lbPrev.style.display = currentGallery.length > 1 ? '' : 'none';

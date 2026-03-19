@@ -10,6 +10,35 @@
 	var NOTICE_COOLDOWN_MS = 1200;
 	var boundDocs = [];
 	var editorStoreGuardStarted = false;
+	var htmlDecodeEl = null;
+
+	function decodeTitleEntities( text ) {
+		if ( 'string' !== typeof text || text.indexOf( '&' ) === -1 ) {
+			return text || '';
+		}
+
+		if ( ! htmlDecodeEl ) {
+			htmlDecodeEl = document.createElement( 'textarea' );
+		}
+
+		htmlDecodeEl.innerHTML = text;
+		return htmlDecodeEl.value;
+	}
+
+	function getEntityAwareTitleLength( text ) {
+		return decodeTitleEntities( text ).length;
+	}
+
+	function truncateEntityAwareTitle( text, limit ) {
+		var raw = 'string' === typeof text ? text : '';
+
+		if ( raw.indexOf( '&' ) === -1 ) {
+			return raw.slice( 0, limit );
+		}
+
+		var decoded = decodeTitleEntities( raw );
+		return decoded.length <= limit ? raw : decoded.slice( 0, limit );
+	}
 
 	function bindTitleLimits( rootDoc ) {
 		if ( ! rootDoc || ! rootDoc.querySelectorAll ) {
@@ -326,12 +355,12 @@
 			}
 
 			var title = editorStore.getEditedPostAttribute( 'title' );
-			if ( 'string' !== typeof title || title.length <= TITLE_MAX ) {
+			if ( 'string' !== typeof title || getEntityAwareTitleLength( title ) <= TITLE_MAX ) {
 				return;
 			}
 
 			isApplying = true;
-			window.wp.data.dispatch( 'core/editor' ).editPost( { title: title.slice( 0, TITLE_MAX ) } );
+			window.wp.data.dispatch( 'core/editor' ).editPost( { title: truncateEntityAwareTitle( title, TITLE_MAX ) } );
 			isApplying = false;
 			showLimitNotice();
 		} );
@@ -481,7 +510,7 @@
 
 			if ( isTextInput( field ) ) {
 				var currentValue = field.value || '';
-				var selectedLen = Math.max( 0, ( field.selectionEnd || 0 ) - ( field.selectionStart || 0 ) );
+				var selectedLen = getTextInputSelectionLength( field );
 				var incomingLen = getIncomingLength( e );
 				if ( currentValue.length - selectedLen + incomingLen > TITLE_MAX ) {
 					e.preventDefault();
@@ -524,7 +553,7 @@
 
 			if ( isTextInput( field ) ) {
 				var currentValue = field.value || '';
-				var selectedLen = Math.max( 0, ( field.selectionEnd || 0 ) - ( field.selectionStart || 0 ) );
+				var selectedLen = getTextInputSelectionLength( field );
 				if ( currentValue.length - selectedLen >= TITLE_MAX ) {
 					e.preventDefault();
 					showLimitNotice();

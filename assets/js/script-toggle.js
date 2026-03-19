@@ -80,6 +80,41 @@
 		return str.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
 	}
 
+	function normalizeNoTranslateWords( words ) {
+		var normalized = [];
+		var seen = Object.create( null );
+
+		( words || [] ).forEach( function( word ) {
+			var cleaned = String( word || '' ).trim();
+			var key;
+			if ( ! cleaned ) {
+				return;
+			}
+
+			key = cleaned.toLowerCase();
+			if ( seen[ key ] ) {
+				return;
+			}
+
+			seen[ key ] = true;
+			normalized.push( cleaned );
+		} );
+
+		normalized.sort( function( a, b ) {
+			return b.length - a.length;
+		} );
+
+		return normalized;
+	}
+
+	function buildWholeWordRegExp( word ) {
+		// Do not use \b here: it is ASCII-centric and breaks on mixed Cyrillic/Latin text.
+		return new RegExp(
+			'(^|[^\\p{L}\\p{N}_])(' + escapeRegExp( word ) + ')(?=$|[^\\p{L}\\p{N}_])',
+			'giu'
+		);
+	}
+
 	function getNoTranslateWordsForNode( node ) {
 		var words = [];
 		var el = node && node.nodeType === 1 ? node : ( node ? node.parentElement : null );
@@ -107,7 +142,7 @@
 			el = el.parentElement;
 		}
 
-		return words;
+		return normalizeNoTranslateWords( words );
 	}
 
 	function convertKeepingWords( text, converter, words ) {
@@ -123,11 +158,12 @@
 			if ( ! word ) {
 				return;
 			}
-			re = new RegExp( escapeRegExp( word ), 'gi' );
-			working = working.replace( re, function( match ) {
+
+			re = buildWholeWordRegExp( word );
+			working = working.replace( re, function( match, prefix, value ) {
 				var token = '~~' + idx + '_' + kept.length + '~~';
-				kept.push( { token: token, value: match } );
-				return token;
+				kept.push( { token: token, value: value } );
+				return prefix + token;
 			} );
 		} );
 

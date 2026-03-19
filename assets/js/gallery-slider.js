@@ -7,6 +7,13 @@
 	var lbGallery = [];
 	var lbIndex   = 0;
 
+	function closeOtherLightboxes() {
+		var other = document.getElementById( 'kompas-gallery-lb' );
+		if ( other ) {
+			other.classList.remove( 'is-open' );
+		}
+	}
+
 	function createLightbox() {
 		if ( document.getElementById( 'kompas-slider-lb' ) ) {
 			lb        = document.getElementById( 'kompas-slider-lb' );
@@ -25,7 +32,9 @@
 		lb.setAttribute( 'aria-modal', 'true' );
 
 		var wrap = document.createElement( 'div' );
+		var mediaWrap = document.createElement( 'div' );
 		wrap.className = 'kompas-gallery-lb__wrap';
+		mediaWrap.className = 'kompas-gallery-lb__media';
 
 		lbClose = document.createElement( 'button' );
 		lbClose.className   = 'kompas-gallery-lb__close';
@@ -54,11 +63,13 @@
 		lbCounter = document.createElement( 'span' );
 		lbCounter.className = 'kompas-gallery-lb__counter';
 
+		mediaWrap.appendChild( lbImg );
+		mediaWrap.appendChild( lbCaption );
+
 		wrap.appendChild( lbClose );
 		wrap.appendChild( lbPrev );
-		wrap.appendChild( lbImg );
+		wrap.appendChild( mediaWrap );
 		wrap.appendChild( lbNext );
-		wrap.appendChild( lbCaption );
 		wrap.appendChild( lbCounter );
 		lb.appendChild( wrap );
 		document.body.appendChild( lb );
@@ -73,6 +84,7 @@
 	}
 
 	function openLightbox( gallery, index ) {
+		closeOtherLightboxes();
 		lbGallery = gallery;
 		lbIndex   = index;
 		lbShow();
@@ -96,6 +108,7 @@
 		lbImg.src             = item.full;
 		lbImg.alt             = item.alt;
 		lbCaption.textContent = item.credit ? 'Фото: ' + item.credit : '';
+		lbCaption.style.display = item.credit ? '' : 'none';
 		lbCounter.textContent = ( lbIndex + 1 ) + ' / ' + lbGallery.length;
 		lbPrev.style.display  = lbGallery.length > 1 ? '' : 'none';
 		lbNext.style.display  = lbGallery.length > 1 ? '' : 'none';
@@ -112,7 +125,6 @@
 			var btnPrev  = slider.querySelector( '.kompas-gallery-slider__arrow--prev' );
 			var btnNext  = slider.querySelector( '.kompas-gallery-slider__arrow--next' );
 			var fracCur  = slider.querySelector( '.kompas-gallery-slider__current' );
-			var creditEl = slider.querySelector( '.kompas-gallery-slider__credit' );
 			var total    = slides.length;
 			var current  = 0;
 
@@ -134,9 +146,6 @@
 				slides[ current ].style.display = '';
 				if ( thumbBtns[ current ] ) thumbBtns[ current ].classList.add( 'is-active' );
 				if ( fracCur ) fracCur.textContent = current + 1;
-
-				var c = gallery[ current ].credit;
-				if ( creditEl ) creditEl.textContent = c ? 'Фото: ' + c : '';
 			}
 
 			if ( btnPrev ) btnPrev.addEventListener( 'click', function() { goTo( current - 1 ); } );
@@ -155,12 +164,6 @@
 					openLightbox( gallery, i );
 				} );
 			} );
-
-			// Init credit text.
-			if ( creditEl ) {
-				var c0 = gallery[0].credit;
-				creditEl.textContent = c0 ? 'Фото: ' + c0 : '';
-			}
 		} );
 
 		document.addEventListener( 'keydown', function( e ) {

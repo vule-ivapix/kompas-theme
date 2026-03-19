@@ -564,7 +564,7 @@
 							},
 						} ),
 						el( 'p', { style: { fontSize: '11px', color: '#757575', marginTop: '8px' } },
-							'Ako nije izabran nijedan post, prikazuju se najnoviji po datumu.'
+							'Ako nije izabran nijedan post, preostala mesta se popunjavaju najčitanijim u poslednjih 7 dana.'
 						)
 					)
 				),
@@ -595,7 +595,8 @@
 							value: orderby,
 							options: [
 								{ label: 'Po datumu (najnovije)', value: 'date' },
-								{ label: 'Po pregledima (najčitanije)', value: 'views' },
+								{ label: 'Po pregledima (7 dana)', value: 'views_7d' },
+								{ label: 'Po pregledima (ukupno)', value: 'views' },
 							],
 							onChange: function( v ) { props.setAttributes( { orderby: v } ); },
 						} ),

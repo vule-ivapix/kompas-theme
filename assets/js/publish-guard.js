@@ -10,20 +10,92 @@
 ( function () {
 	'use strict';
 
-	if ( 'undefined' === typeof wp || ! wp.data ) {
+	if ( 'undefined' === typeof wp || ! wp.data || ! wp.apiFetch ) {
 		return;
 	}
 
 	var subscribe        = wp.data.subscribe;
 	var select           = wp.data.select;
 	var dispatch         = wp.data.dispatch;
+	var apiFetch         = wp.apiFetch;
 	var LOCK_KEY         = 'kompas-publish-guard';
 	var NOTICE_ID        = 'kompas-publish-guard';
+	var SOURCE_NOTICE_ID = 'kompas-featured-image-source';
 	var TITLE_MAX        = 60;
 	var uncategorizedId  = ( window.kompasPublishGuard || {} ).uncategorizedId || 1;
+	var htmlDecodeEl     = null;
+	var prevFeaturedImageId = null;
+	var pendingFeaturedSourceId = 0;
 
 	// Track previous error string to avoid re-dispatching on every store change.
 	var prevIssues = undefined; // eslint-disable-line no-undefined
+
+	function decodeTitleEntities( text ) {
+		if ( 'string' !== typeof text || text.indexOf( '&' ) === -1 ) {
+			return text || '';
+		}
+
+		if ( ! htmlDecodeEl ) {
+			htmlDecodeEl = document.createElement( 'textarea' );
+		}
+
+		htmlDecodeEl.innerHTML = text;
+		return htmlDecodeEl.value;
+	}
+
+	function getEntityAwareTitleLength( text ) {
+		return decodeTitleEntities( text ).length;
+	}
+
+	function truncateEntityAwareTitle( text, limit ) {
+		var raw = 'string' === typeof text ? text : '';
+
+		if ( raw.indexOf( '&' ) === -1 ) {
+			return raw.slice( 0, limit );
+		}
+
+		var decoded = decodeTitleEntities( raw );
+		return decoded.length <= limit ? raw : decoded.slice( 0, limit );
+	}
+
+	function fetchAttachmentSource( attachmentId ) {
+		return apiFetch( { path: '/wp/v2/media/' + attachmentId + '?context=edit' } ).then( function ( media ) {
+			return media && media.meta && media.meta.kompas_image_source
+				? String( media.meta.kompas_image_source ).trim()
+				: '';
+		} );
+	}
+
+	function validateFeaturedImageSource( featuredImageId ) {
+		if ( ! featuredImageId || pendingFeaturedSourceId === featuredImageId ) {
+			return;
+		}
+
+		pendingFeaturedSourceId = featuredImageId;
+
+		fetchAttachmentSource( featuredImageId ).then( function ( source ) {
+			var currentFeaturedImageId = select( 'core/editor' ).getEditedPostAttribute( 'featured_media' );
+
+			pendingFeaturedSourceId = 0;
+
+			if ( currentFeaturedImageId !== featuredImageId ) {
+				return;
+			}
+
+			if ( source ) {
+				dispatch( 'core/notices' ).removeNotice( SOURCE_NOTICE_ID );
+				return;
+			}
+
+			dispatch( 'core/editor' ).editPost( { featured_media: 0 } );
+			dispatch( 'core/notices' ).createErrorNotice(
+				'Naslovna fotografija mora da ima upisan izvor na samoj fotografiji.',
+				{ id: SOURCE_NOTICE_ID, isDismissible: true }
+			);
+		} ).catch( function () {
+			pendingFeaturedSourceId = 0;
+		} );
+	}
 
 	// ── Publish guard ─────────────────────────────────────────────────────────
 
@@ -32,6 +104,18 @@
 		if ( ! editor ) {
 			return;
 		}
+
+			var featuredImageId = editor.getEditedPostAttribute( 'featured_media' );
+			if ( featuredImageId !== prevFeaturedImageId ) {
+				prevFeaturedImageId = featuredImageId;
+
+				if ( featuredImageId ) {
+					validateFeaturedImageSource( featuredImageId );
+				} else {
+					pendingFeaturedSourceId = 0;
+					dispatch( 'core/notices' ).removeNotice( SOURCE_NOTICE_ID );
+				}
+			}
 
 		var status = editor.getEditedPostAttribute( 'status' );
 
@@ -45,7 +129,6 @@
 			return;
 		}
 
-		var featuredImageId = editor.getEditedPostAttribute( 'featured_media' );
 		var categories      = editor.getEditedPostAttribute( 'categories' ) || [];
 		var realCategories  = categories.filter( function ( id ) {
 			return id !== uncategorizedId;
@@ -53,8 +136,8 @@
 		var title = editor.getEditedPostAttribute( 'title' ) || '';
 
 		// Hard fallback at data-layer level in case any DOM pathway misses.
-		if ( title.length > TITLE_MAX ) {
-			title = title.slice( 0, TITLE_MAX );
+		if ( getEntityAwareTitleLength( title ) > TITLE_MAX ) {
+			title = truncateEntityAwareTitle( title, TITLE_MAX );
 			dispatch( 'core/editor' ).editPost( { title: title } );
 		}
 
@@ -65,7 +148,7 @@
 		if ( realCategories.length === 0 ) {
 			errors.push( 'kategorija nije izabrana' );
 		}
-		if ( title.length > TITLE_MAX ) {
+		if ( getEntityAwareTitleLength( title ) > TITLE_MAX ) {
 			errors.push( 'naslov je duži od ' + TITLE_MAX + ' karaktera' );
 		}
 

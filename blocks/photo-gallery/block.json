@@ -8,7 +8,7 @@
 	"supports": {
 		"html": false,
 		"align": [ "wide", "full" ],
-		"inserter": true
+		"inserter": false
 	},
 	"attributes": {
 		"images": {
@@ -17,6 +17,6 @@
 		}
 	},
 	"textdomain": "kompas",
-	"editorScript": "kompas-photo-gallery-editor",
+	"editorScript": "kompas-gallery-editor",
 	"render": "file:../../render/photo-gallery.php"
 }

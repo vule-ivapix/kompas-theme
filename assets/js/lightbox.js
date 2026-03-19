@@ -21,16 +21,20 @@
 		'<div class="kompas-lightbox__wrap">' +
 			'<button class="kompas-lightbox__close" aria-label="Zatvori">&times;</button>' +
 			'<img class="kompas-lightbox__img" src="" alt="" />' +
+			'<span class="kompas-lightbox__source kompas-image-source" hidden></span>' +
 		'</div>';
 	document.body.appendChild( lb );
 
 	var lbWrap  = lb.querySelector( '.kompas-lightbox__wrap' );
 	var lbImg   = lb.querySelector( '.kompas-lightbox__img' );
+	var lbSource = lb.querySelector( '.kompas-lightbox__source' );
 	var lbClose = lb.querySelector( '.kompas-lightbox__close' );
 
-	function open( src, alt ) {
+	function open( src, alt, sourceHtml ) {
 		lbImg.src = src;
 		lbImg.alt = alt || '';
+		lbSource.innerHTML = sourceHtml || '';
+		lbSource.hidden = ! sourceHtml;
 		lb.classList.add( 'is-open' );
 		document.body.style.overflow = 'hidden';
 		lbClose.focus();
@@ -43,6 +47,8 @@
 		setTimeout( function () {
 			lbImg.src = '';
 		}, 300 );
+		lbSource.innerHTML = '';
+		lbSource.hidden = true;
 	}
 
 	// Close on backdrop click (not on the image itself).
@@ -69,8 +75,18 @@
 		return !! img.closest( '.kompas-related-posts-query' );
 	}
 
+	function isInCustomGallery( img ) {
+		return !! img.closest( '.kompas-gallery-slider, .kompas-photo-gallery' );
+	}
+
+	function getSourceHtml( img ) {
+		var frame = img.closest( '.kompas-image-frame' );
+		var source = frame ? frame.querySelector( '.kompas-image-source' ) : null;
+		return source ? source.innerHTML : '';
+	}
+
 	function bindImage( img ) {
-		if ( ! img || isInRelatedPosts( img ) ) {
+		if ( ! img || isInRelatedPosts( img ) || isInCustomGallery( img ) ) {
 			return;
 		}
 
@@ -82,7 +98,7 @@
 
 		var handler = function ( e ) {
 			e.preventDefault();
-			open( fullSrc || img.src, img.alt );
+			open( fullSrc || img.src, img.alt, getSourceHtml( img ) );
 		};
 
 		if ( anchor ) {

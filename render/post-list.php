@@ -3,7 +3,7 @@
  * Render: kompas/post-list
  *
  * Attributes:
- *   orderby      — 'date' (default) or 'views'
+ *   orderby      — 'date' (default), 'views', or 'views_7d'
  *   postsPerPage — integer, default 12
  */
 
@@ -19,14 +19,7 @@ $query_args = array(
 	'paged'          => $paged,
 );
 
-if ( 'views' === $orderby ) {
-	$query_args['meta_key'] = 'kompas_views';
-	$query_args['orderby']  = 'meta_value_num';
-	$query_args['order']    = 'DESC';
-} else {
-	$query_args['orderby'] = 'date';
-	$query_args['order']   = 'DESC';
-}
+$query_args = array_merge( $query_args, kompas_get_post_ordering_args( $orderby ) );
 
 $query = new WP_Query( $query_args );
 ?>
